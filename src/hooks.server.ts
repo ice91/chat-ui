@@ -1,3 +1,4 @@
+// src/hooks.server.ts
 import { env } from "$env/dynamic/private";
 import { env as envPublic } from "$env/dynamic/public";
 import type { Handle, HandleServerError } from "@sveltejs/kit";
@@ -116,9 +117,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (email) {
 		secretSessionId = sessionId = await sha256(email);
 
+		const userId = new ObjectId(sessionId.slice(0, 24));
+
 		event.locals.user = {
 			// generate id based on email
-			_id: new ObjectId(sessionId.slice(0, 24)),
+			_id: userId,
 			name: email,
 			email,
 			createdAt: new Date(),
@@ -127,6 +130,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			avatarUrl: "",
 			logoutDisabled: true,
 		};
+		event.locals.userId = userId.toString();
 	} else if (token) {
 		secretSessionId = token;
 		sessionId = await sha256(token);
@@ -135,6 +139,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		if (user) {
 			event.locals.user = user;
+			event.locals.userId = user._id.toString();
 		}
 	} else if (event.url.pathname.startsWith(`${base}/api/`) && env.USE_HF_TOKEN_IN_API === "true") {
 		// if the request goes to the API and no user is available in the header
@@ -162,6 +167,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 
 				event.locals.user = user;
+				event.locals.userId = user._id.toString();
 			} else {
 				const response = await fetch("https://huggingface.co/api/whoami-v2", {
 					headers: {
@@ -188,6 +194,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				});
 
 				event.locals.user = user;
+				event.locals.userId = user._id.toString();
 			}
 		}
 	}

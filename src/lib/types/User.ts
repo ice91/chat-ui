@@ -7,6 +7,12 @@ export interface User extends Timestamps {
 	username?: string;
 	name: string;
 	email?: string;
+	points: number;
+	subscriptionStatus: string;
+	subscriptionPlan?: string;
+	subscriptionExpiry?: Date;
+	referralCode?: string;
+	stripeCustomerId?: string;
 	avatarUrl: string | undefined;
 	hfUserId: string;
 	isAdmin?: boolean;
