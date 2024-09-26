@@ -27,7 +27,17 @@ export async function GET({ url }) {
 	}
 
 	try {
-		const api = await (await Client.connect(namespace)).view_api();
+		// 取得 HF_ACCESS_TOKEN 從環境變數
+		const accessToken = env.HF_TOKEN;
+		if (!accessToken) {
+			return new Response(JSON.stringify({ error: "HF_TOKEN is not set" }), {
+				status: 401,
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+		// 使用 HF_ACCESS_TOKEN 來連接到 Hugging Face Space，並傳遞 token 選項
+		const api = await (await Client.connect(namespace, { hf_token: accessToken })).view_api();
+		//const api = await (await Client.connect(namespace)).view_api();
 		return new Response(JSON.stringify(api), {
 			status: 200,
 			headers: {

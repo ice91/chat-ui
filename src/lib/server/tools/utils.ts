@@ -9,23 +9,31 @@ import {
 } from "$lib/types/MessageUpdate";
 import { logger } from "$lib/server/logger";
 export async function* callSpace<TInput extends unknown[], TOutput extends unknown[]>(
-	name: string,
+	endpointUrl: string,
 	func: string,
 	parameters: TInput,
 	ipToken: string | undefined,
 	uuid: string
 ): AsyncGenerator<MessageToolUpdate, TOutput, undefined> {
 	class CustomClient extends Client {
-		fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+		fetch(input: RequestInfo | endpointUrl, init?: RequestInit): Promise<Response> {
 			init = init || {};
 			init.headers = {
 				...(init.headers || {}),
 				...(ipToken ? { "X-IP-Token": ipToken } : {}),
+				...(this.hf_token ? { Authorization: `Bearer ${this.hf_token}` } : {}),
 			};
 			return super.fetch(input, init);
 		}
 	}
-	const client = await CustomClient.connect(name, {
+
+	if (!env.HF_TOKEN && !env.HF_ACCESS_TOKEN) {
+		logger.error("HF_TOKEN and HF_ACCESS_TOKEN are not set.");
+	} else {
+		logger.info("HF_TOKEN or HF_ACCESS_TOKEN is set.");
+	}
+
+	const client = await CustomClient.connect(endpointUrl, {
 		hf_token: (env.HF_TOKEN ?? env.HF_ACCESS_TOKEN) as unknown as `hf_${string}`,
 		events: ["status", "data"],
 	});

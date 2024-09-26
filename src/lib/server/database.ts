@@ -14,6 +14,7 @@ import type { MigrationResult } from "$lib/types/MigrationResult";
 import type { Semaphore } from "$lib/types/Semaphore";
 import type { AssistantStats } from "$lib/types/AssistantStats";
 import type { CommunityToolDB } from "$lib/types/Tool";
+import type { ReferralCode } from "$lib/types/ReferralCode"; // 新增的类型
 
 import { logger } from "$lib/server/logger";
 import { building } from "$app/environment";
@@ -88,6 +89,7 @@ export class Database {
 		const semaphores = db.collection<Semaphore>("semaphores");
 		const tokenCaches = db.collection<TokenCache>("tokens");
 		const tools = db.collection<CommunityToolDB>("tools");
+		const referralCodes = db.collection<ReferralCode>("referralCodes"); // 新增的集合
 
 		return {
 			conversations,
@@ -106,6 +108,7 @@ export class Database {
 			semaphores,
 			tokenCaches,
 			tools,
+			referralCodes, // 添加到返回的对象中
 		};
 	}
 
@@ -129,6 +132,7 @@ export class Database {
 			semaphores,
 			tokenCaches,
 			tools,
+			referralCodes, // 引用新增的集合
 		} = this.getCollections();
 
 		conversations
@@ -228,6 +232,11 @@ export class Database {
 		tools.createIndex({ createdById: 1, userCount: -1 }).catch((e) => logger.error(e));
 		tools.createIndex({ userCount: 1 }).catch((e) => logger.error(e));
 		tools.createIndex({ last24HoursCount: 1 }).catch((e) => logger.error(e));
+
+		// 创建 referralCodes 的索引
+		referralCodes.createIndex({ code: 1 }, { unique: true }).catch((e) => logger.error(e));
+		referralCodes.createIndex({ createdBy: 1 }).catch((e) => logger.error(e));
+		referralCodes.createIndex({ usedBy: 1 }, { sparse: true }).catch((e) => logger.error(e));
 	}
 }
 

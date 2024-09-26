@@ -219,7 +219,8 @@ export function getCallMethod(tool: Omit<BaseTool, "call">): BackendCall {
 			tool.endpoint,
 			await Promise.all(inputs),
 			ipToken,
-			uuid
+			uuid,
+			env.HF_TOKEN // 假設 ctx 中包含 hf_token
 		);
 
 		if (!isValidOutputComponent(tool.outputComponent)) {
@@ -261,7 +262,11 @@ export function getCallMethod(tool: Omit<BaseTool, "call">): BackendCall {
 
 						await Promise.all(
 							arrayedOutput.map(async (output, idx) => {
-								await fetch(output)
+								await fetch(output, {
+									headers: {
+										Authorization: `Bearer ${env.HF_TOKEN}`, // 添加 Authorization 標頭
+									},
+								})
 									.then((res) => res.blob())
 									.then(async (blob) => {
 										const { ext, mime } = (await fileTypeFromBlob(blob)) ?? { ext: "octet-stream" };

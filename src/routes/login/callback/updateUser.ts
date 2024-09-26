@@ -11,6 +11,7 @@ import { addWeeks } from "date-fns";
 import { OIDConfig } from "$lib/server/auth";
 import { env } from "$env/dynamic/private";
 import { logger } from "$lib/server/logger";
+import type { User } from "$lib/types/User"; // 確保正確導入用戶類型
 
 export async function updateUser(params: {
 	userData: UserinfoResponse;
@@ -21,14 +22,9 @@ export async function updateUser(params: {
 }) {
 	const { userData, locals, cookies, userAgent, ip } = params;
 
-	// Microsoft Entra v1 tokens do not provide preferred_username, instead the username is provided in the upn
-	// claim. See https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
-	if (!userData.preferred_username && userData.upn) {
-		userData.preferred_username = userData.upn as string;
-	}
-
+	// 使用提供者提供的用戶數據進行解析
 	const {
-		preferred_username: username,
+		username,
 		name,
 		email,
 		picture: avatarUrl,
@@ -59,26 +55,17 @@ export async function updateUser(params: {
 		})
 		.transform((data) => ({
 			...data,
+			username: data.preferred_username || data.email || data.name,
 			name: data[OIDConfig.NAME_CLAIM],
 		}))
-		.parse(userData) as {
-		preferred_username?: string;
-		email?: string;
-		picture?: string;
-		sub: string;
-		name: string;
-		orgs?: Array<{
-			sub: string;
-			name: string;
-			picture: string;
-			preferred_username: string;
-			isEnterprise: boolean;
-		}>;
-	} & Record<string, string>;
+		.parse(userData);
 
-	// Dynamically access user data based on NAME_CLAIM from environment
-	// This approach allows us to adapt to different OIDC providers flexibly.
+	// 檢查是否具有管理員和早期訪問權限
+	const isAdmin = (env.HF_ORG_ADMIN && orgs?.some((org) => org.sub === env.HF_ORG_ADMIN)) || false;
+	const isEarlyAccess =
+		(env.HF_ORG_EARLY_ACCESS && orgs?.some((org) => org.sub === env.HF_ORG_EARLY_ACCESS)) || false;
 
+	// 記錄登錄行為
 	logger.info(
 		{
 			login_username: username,
@@ -88,43 +75,107 @@ export async function updateUser(params: {
 		},
 		"user login"
 	);
-	// if using huggingface as auth provider, check orgs for earl access and amin rights
-	const isAdmin = (env.HF_ORG_ADMIN && orgs?.some((org) => org.sub === env.HF_ORG_ADMIN)) || false;
-	const isEarlyAccess =
-		(env.HF_ORG_EARLY_ACCESS && orgs?.some((org) => org.sub === env.HF_ORG_EARLY_ACCESS)) || false;
 
-	logger.debug(
-		{
-			isAdmin,
-			isEarlyAccess,
-			hfUserId,
-		},
-		`Updating user ${hfUserId}`
-	);
-
-	// check if user already exists
+	// 查找現有的用戶
 	const existingUser = await collections.users.findOne({ hfUserId });
 	let userId = existingUser?._id;
 
-	// update session cookie on login
+	// 生成新的 session ID
 	const previousSessionId = locals.sessionId;
 	const secretSessionId = crypto.randomUUID();
 	const sessionId = await sha256(secretSessionId);
 
 	if (await collections.sessions.findOne({ sessionId })) {
-		error(500, "Session ID collision");
+		throw error(500, "Session ID collision");
 	}
 
 	locals.sessionId = sessionId;
 
-	if (existingUser) {
-		// update existing user if any
-		await collections.users.updateOne(
-			{ _id: existingUser._id },
-			{ $set: { username, name, avatarUrl, isAdmin, isEarlyAccess } }
+	// 準備更新的用戶字段
+	let updateFields: Partial<User> = {
+		username,
+		name,
+		avatarUrl,
+		isAdmin,
+		isEarlyAccess,
+		updatedAt: new Date(),
+	};
+
+	if (!existingUser) {
+		// 新用戶創建
+		updateFields = {
+			...updateFields,
+			email,
+			hfUserId,
+			points: 0, // 初始積分
+			subscriptionStatus: "inactive", // 初始訂閱狀態
+			subscriptionPlan: null,
+			subscriptionExpiry: null,
+			referralCode: null, // 如果需要推薦碼
+		};
+
+		// 創建新用戶
+		const { insertedId } = await collections.users.insertOne({
+			_id: new ObjectId(),
+			createdAt: new Date(),
+			...updateFields,
+		});
+
+		userId = insertedId;
+
+		// 創建新會話
+		await collections.sessions.insertOne({
+			_id: new ObjectId(),
+			sessionId: locals.sessionId,
+			userId: insertedId,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			userAgent,
+			ip,
+			expiresAt: addWeeks(new Date(), 2),
+		});
+
+		// 遷移設置
+		const { matchedCount } = await collections.settings.updateOne(
+			{ sessionId: previousSessionId },
+			{
+				$set: { userId: insertedId, updatedAt: new Date() },
+				$unset: { sessionId: "" },
+			}
 		);
 
-		// remove previous session if it exists and add new one
+		// 如果沒有預設設置，則創建默認設置
+		if (!matchedCount) {
+			await collections.settings.insertOne({
+				userId: insertedId,
+				ethicsModalAcceptedAt: new Date(),
+				updatedAt: new Date(),
+				createdAt: new Date(),
+				...DEFAULT_SETTINGS,
+			});
+		}
+	} else {
+		// 更新現有用戶
+		const newStripeCustomerId: string | undefined = existingUser.stripeCustomerId;
+
+		updateFields = {
+			...updateFields,
+			points: existingUser.points, // 保留現有積分
+			subscriptionStatus: existingUser.subscriptionStatus,
+			subscriptionPlan: existingUser.subscriptionPlan,
+			subscriptionExpiry: existingUser.subscriptionExpiry,
+		};
+
+		const updateOperation: { $set: Partial<User> } = { $set: updateFields };
+
+		// 如果有新的 stripeCustomerId，則設置它
+		if (newStripeCustomerId) {
+			updateOperation.$set.stripeCustomerId = newStripeCustomerId;
+		}
+
+		await collections.users.updateOne({ _id: existingUser._id }, updateOperation);
+
+		// 刪除之前的會話，插入新會話
 		await collections.sessions.deleteOne({ sessionId: previousSessionId });
 		await collections.sessions.insertOne({
 			_id: new ObjectId(),
@@ -136,59 +187,12 @@ export async function updateUser(params: {
 			ip,
 			expiresAt: addWeeks(new Date(), 2),
 		});
-	} else {
-		// user doesn't exist yet, create a new one
-		const { insertedId } = await collections.users.insertOne({
-			_id: new ObjectId(),
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			username,
-			name,
-			email,
-			avatarUrl,
-			hfUserId,
-			isAdmin,
-			isEarlyAccess,
-		});
-
-		userId = insertedId;
-
-		await collections.sessions.insertOne({
-			_id: new ObjectId(),
-			sessionId: locals.sessionId,
-			userId,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			userAgent,
-			ip,
-			expiresAt: addWeeks(new Date(), 2),
-		});
-
-		// move pre-existing settings to new user
-		const { matchedCount } = await collections.settings.updateOne(
-			{ sessionId: previousSessionId },
-			{
-				$set: { userId, updatedAt: new Date() },
-				$unset: { sessionId: "" },
-			}
-		);
-
-		if (!matchedCount) {
-			// if no settings found for user, create default settings
-			await collections.settings.insertOne({
-				userId,
-				ethicsModalAcceptedAt: new Date(),
-				updatedAt: new Date(),
-				createdAt: new Date(),
-				...DEFAULT_SETTINGS,
-			});
-		}
 	}
 
-	// refresh session cookie
+	// 刷新會話 cookie
 	refreshSessionCookie(cookies, secretSessionId);
 
-	// migrate pre-existing conversations
+	// 遷移之前的對話
 	await collections.conversations.updateMany(
 		{ sessionId: previousSessionId },
 		{
