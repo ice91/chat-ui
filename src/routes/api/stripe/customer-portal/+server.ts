@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 	try {
 		const portalSession = await stripe.billingPortal.sessions.create({
 			customer: user.stripeCustomerId,
-			return_url: `${env.PUBLIC_ORIGIN}/userinfo`, // Replace with your actual return URL
+			return_url: `${env.STRIPE_BILLING_PORTAL}`, // Replace with your actual return URL
 		});
 
 		return new Response(JSON.stringify({ url: portalSession.url }), { status: 200 });

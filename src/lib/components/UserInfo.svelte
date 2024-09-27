@@ -95,7 +95,7 @@
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ returnUrl: window.location.href }),
+        body: JSON.stringify({ returnUrl: window.location.origin + '/userinfo' }),
       });
 
       const data = await res.json();
@@ -197,7 +197,7 @@
       const res = await fetch('/api/user');
       if (res.ok) {
         const data = await res.json();
-        Object.assign(user, data); // 更新 user 物件
+        Object.assign(user, data.user); // 更新 user 物件
       } else {
         console.error('無法刷新使用者資料。');
       }
@@ -223,19 +223,18 @@
     // 初始化當前主題
     currentTheme = (localStorage.theme as 'light' | 'dark') || 'light';
     document.documentElement.classList.add(currentTheme);
-  });
 
-  // 監聽 HTML 類別變化以更新 currentTheme
-  const observer = new MutationObserver(() => {
-    if (document.documentElement.classList.contains('dark')) {
-      currentTheme = 'dark';
-    } else {
-      currentTheme = 'light';
-    }
-  });
+    // Instantiate MutationObserver inside onMount
+    const observer = new MutationObserver(() => {
+      if (document.documentElement.classList.contains('dark')) {
+        currentTheme = 'dark';
+      } else {
+        currentTheme = 'light';
+      }
+    });
 
-  onMount(() => {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     return () => observer.disconnect();
   });
 </script>
