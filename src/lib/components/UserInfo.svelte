@@ -1,5 +1,3 @@
-<!-- src/lib/components/UserInfo.svelte -->
-
 <script lang="ts">
   import { base } from '$app/paths'; // 用於設置登出按鈕的路徑
   import ReferralInput from '$lib/components/ReferralInput.svelte';
@@ -240,372 +238,414 @@
 </script>
 
 <style>
-  /* 基礎樣式 */
+  /* 基礎樣式保持不變 */
   .user-info {
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
   }
 
   /* 淺色主題 */
   .light {
-    background-color: #f9f9f9;
-    color: #333;
+      background-color: #f9f9f9;
+      color: #333;
   }
 
   /* 深色主題 */
   .dark {
-    background-color: #1a2432;
-    color: #f9f9f9;
+      background-color: #1a2432;
+      color: #f9f9f9;
   }
 
   .section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
   }
 
   .section h3 {
-    margin-bottom: 0.5rem;
-    font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      font-size: 1.25rem;
   }
 
   /* 根據主題調整標題顏色 */
   .light .section h3 {
-    color: #333;
+      color: #333;
   }
 
   .dark .section h3 {
-    color: #f9f9f9;
+      color: #f9f9f9;
   }
 
   .referral-form {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
   }
 
   .referral-form input {
-    padding: 0.5rem;
-    width: 200px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: inherit;
-    color: inherit;
+      padding: 0.5rem;
+      width: 200px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: inherit;
+      color: inherit;
   }
 
   .referral-form input::placeholder {
-    color: #888;
+      color: #888;
   }
 
   /* 按鈕樣式 */
   .referral-form button,
   .generate-button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      color: white;
   }
 
   /* 淺色主題按鈕 */
   .light .referral-form button,
   .light .generate-button {
-    background-color: #3182ce;
+      background-color: #3182ce;
   }
 
   .light .referral-form button:hover,
   .light .generate-button:hover {
-    background-color: #2c5282;
+      background-color: #2c5282;
   }
 
   /* 深色主題按鈕 */
   .dark .referral-form button,
   .dark .generate-button {
-    background-color: #4a90e2;
+      background-color: #4a90e2;
   }
 
   .dark .referral-form button:hover,
   .dark .generate-button:hover {
-    background-color: #357ab8;
+      background-color: #357ab8;
   }
 
   .message {
-    margin-top: 0.5rem;
-    color: green;
-    font-size: 0.9rem;
+      margin-top: 0.5rem;
+      color: green;
+      font-size: 0.9rem;
   }
 
   .error {
-    color: red;
-    font-size: 0.9rem;
+      color: red;
+      font-size: 0.9rem;
   }
 
   .badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    color: white;
-    font-size: 0.875rem;
-    margin-left: 0.5rem;
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      color: white;
+      font-size: 0.875rem;
+      margin-left: 0.5rem;
   }
 
   /* 徽章顏色根據主題變化 */
   .badge.green.light {
-    background-color: #28a745;
+      background-color: #28a745;
   }
 
   .badge.green.dark {
-    background-color: #3a5c37;
+      background-color: #3a5c37;
   }
 
   .badge.yellow.light {
-    background-color: #ffc107;
+      background-color: #ffc107;
   }
 
   .badge.yellow.dark {
-    background-color: #b58900;
+      background-color: #b58900;
   }
 
   .badge.red.light {
-    background-color: #dc3545;
+      background-color: #dc3545;
   }
 
   .badge.red.dark {
-    background-color: #732029;
+      background-color: #732029;
   }
 
   .badge.gray.light {
-    background-color: #6c757d;
+      background-color: #6c757d;
   }
 
   .badge.gray.dark {
-    background-color: #3a3f47;
+      background-color: #3a3f47;
   }
 
   .icon {
-    margin-right: 0.5rem;
+      margin-right: 0.5rem;
   }
 
   /* Sign Out 按鈕樣式 */
   .sign-out-button {
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-    transition: background-color 0.2s ease;
-    color: white;
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: background-color 0.2s ease;
+      color: white;
+      font-size: 1rem; /* 增加字體大小 */
   }
 
   /* 淺色主題 Sign Out 按鈕 */
   .light .sign-out-button {
-    background-color: #e53e3e; /* 紅色 */
+      background-color: #e53e3e; /* 紅色 */
   }
 
   .light .sign-out-button:hover {
-    background-color: #c53030;
+      background-color: #c53030;
   }
 
   /* 深色主題 Sign Out 按鈕 */
   .dark .sign-out-button {
-    background-color: #f56565; /* 淺紅色 */
+      background-color: #f56565; /* 淺紅色 */
   }
 
   .dark .sign-out-button:hover {
-    background-color: #e53e3e;
+      background-color: #e53e3e;
   }
 
   /* 管理訂閱按鈕 */
   .manage-subscription-button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    align-self: flex-start;
-    color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      align-self: flex-start;
+      color: white;
   }
 
   /* 淺色主題管理訂閱按鈕 */
   .light .manage-subscription-button {
-    background-color: #48bb78; /* 綠色 */
+      background-color: #48bb78; /* 綠色 */
   }
 
   .light .manage-subscription-button:hover {
-    background-color: #38a169;
+      background-color: #38a169;
   }
 
   /* 深色主題管理訂閱按鈕 */
   .dark .manage-subscription-button {
-    background-color: #48bb78; /* 綠色 */
+      background-color: #48bb78; /* 綠色 */
   }
 
   .dark .manage-subscription-button:hover {
-    background-color: #38a169;
+      background-color: #38a169;
   }
 
   /* Generate Referral Code Button */
   .generate-button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    align-self: flex-start;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      align-self: flex-start;
   }
 
   /* 淺色主題生成推薦碼按鈕 */
   .light .generate-button {
-    background-color: #805ad5; /* 紫色 */
+      background-color: #805ad5; /* 紫色 */
   }
 
   .light .generate-button:hover {
-    background-color: #6b46c1;
+      background-color: #6b46c1;
   }
 
   /* 深色主題生成推薦碼按鈕 */
   .dark .generate-button {
-    background-color: #9f7aea; /* 淺紫色 */
+      background-color: #9f7aea; /* 淺紫色 */
   }
 
   .dark .generate-button:hover {
-    background-color: #805ad5;
+      background-color: #805ad5;
   }
 
   /* Avatar Image Styles */
   .avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 0.5rem;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 0.5rem;
   }
 
   /* 自適應按鈕文字顏色 */
   button {
-    color: inherit;
+      color: inherit;
   }
 
   /* 新增：訂閱錯誤訊息樣式 */
   .subscribe-error {
-    color: red;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
+      color: red;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
   }
 
   /* 新增：訂閱成功訊息樣式 */
   .subscribe-success {
-    color: green;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
+      color: green;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+  }
+
+  /* 新增媒體查詢以調整小螢幕的樣式 */
+  @media (max-width: 600px) {
+      .user-info {
+          padding: 1rem;
+      }
+
+      .section h3 {
+          font-size: 1.1rem;
+      }
+
+      .avatar {
+          width: 60px;
+          height: 60px;
+      }
+
+      .referral-form input {
+          width: 100%;
+      }
+
+      .referral-form button,
+      .generate-button {
+          width: 100%;
+      }
+
+      .manage-subscription-button,
+      .sign-out-button {
+          width: 100%; /* 使按鈕全寬 */
+      }
+  }
+
+  /* 固定登出按鈕在底部 */
+  .sign-out-container {
+      position: sticky;
+      bottom: 0;
+      background-color: inherit;
+      padding-top: 1rem;
+      padding-bottom: 1rem; /* 增加底部間距 */
   }
 </style>
 
 <div class="user-info {currentTheme}">
   <!-- 個人資訊 -->
   <div class="section">
-    <h3>個人資訊</h3>
-    {#if user.avatarUrl}
-      <img src="{user.avatarUrl}" alt="Avatar" class="avatar" />
-    {/if}
-    <p><strong>姓名:</strong> {user.name}</p>
-    <p><strong>電子郵件:</strong> {user.email}</p>
-    <p><strong>積分:</strong> {user.points}</p>
+      <h3>個人資訊</h3>
+      {#if user.avatarUrl}
+          <img src="{user.avatarUrl}" alt="Avatar" class="avatar" />
+      {/if}
+      <p><strong>姓名:</strong> {user.name}</p>
+      <p><strong>電子郵件:</strong> {user.email}</p>
+      <p><strong>積分:</strong> {user.points}</p>
   </div>
 
   <!-- 訂閱資訊 -->
   <div class="section">
-    <h3>訂閱資訊</h3>
-    <p>
-      <strong>狀態:</strong>
-      <span class="badge {getSubscriptionBadge(user.subscriptionStatus).color} {currentTheme}">
-        {getSubscriptionBadge(user.subscriptionStatus).text}
-      </span>
-    </p>
-    {#if user.subscriptionPlan}
-      <p><strong>計劃：</strong> {user.subscriptionPlan}</p>
-    {/if}
-    {#if user.subscriptionExpiry}
-      <p><strong>到期日：</strong> {new Date(user.subscriptionExpiry).toLocaleDateString()}</p>
-    {/if}
+      <h3>訂閱資訊</h3>
+      <p>
+          <strong>狀態:</strong>
+          <span class="badge {getSubscriptionBadge(user.subscriptionStatus).color} {currentTheme}">
+              {getSubscriptionBadge(user.subscriptionStatus).text}
+          </span>
+      </p>
+      {#if user.subscriptionPlan}
+          <p><strong>計劃：</strong> {user.subscriptionPlan}</p>
+      {/if}
+      {#if user.subscriptionExpiry}
+          <p><strong>到期日：</strong> {new Date(user.subscriptionExpiry).toLocaleDateString()}</p>
+      {/if}
 
-    <!-- Conditionally show Manage Subscription or Subscribe Now -->
-    {#if user.subscriptionStatus === 'active' || user.subscriptionStatus === 'past_due'}
-      <button
-        class="manage-subscription-button"
-        on:click={manageSubscription}
-        disabled={manageSubscriptionLoading}
-      >
-        {manageSubscriptionLoading ? '處理中...' : '管理訂閱'}
-      </button>
-      {#if manageSubscriptionError}
-        <p class="error">{manageSubscriptionError}</p>
+      <!-- Conditionally show Manage Subscription or Subscribe Now -->
+      {#if user.subscriptionStatus === 'active' || user.subscriptionStatus === 'past_due'}
+          <button
+              class="manage-subscription-button"
+              on:click={manageSubscription}
+              disabled={manageSubscriptionLoading}
+          >
+              {manageSubscriptionLoading ? '處理中...' : '管理訂閱'}
+          </button>
+          {#if manageSubscriptionError}
+              <p class="error">{manageSubscriptionError}</p>
+          {/if}
+      {:else}
+          <button
+              class="manage-subscription-button"
+              on:click={subscribeNow}
+              disabled={subscribeLoading}
+          >
+              {subscribeLoading ? '處理中...' : '立即訂閱'}
+          </button>
+          {#if subscribeError}
+              <p class="subscribe-error">{subscribeError}</p>
+          {/if}
       {/if}
-    {:else}
-      <button
-        class="manage-subscription-button"
-        on:click={subscribeNow}
-        disabled={subscribeLoading}
-      >
-        {subscribeLoading ? '處理中...' : '立即訂閱'}
-      </button>
-      {#if subscribeError}
-        <p class="subscribe-error">{subscribeError}</p>
-      {/if}
-    {/if}
   </div>
 
   <!-- 推薦碼資訊 -->
   <div class="section">
-    <h3>推薦碼</h3>
-    {#if user.referralCode}
-      <p>
-        <span class="icon">🔗</span>
-        您的推薦碼：<strong>{user.referralCode}</strong>
-      </p>
-      <button on:click={copyReferralCode} class="{currentTheme}">複製推薦碼</button>
-    {:else}
-      <p>您尚未生成推薦碼。</p>
-      <button
-        class="generate-button {currentTheme}"
-        on:click={handleGenerateCode}
-        disabled={generatingCode}
-      >
-        {generatingCode ? '生成中...' : '生成推薦碼'}
-      </button>
-    {/if}
-    {#if generateMessage}
-      <p class="{generateMessage.startsWith('生成') ? 'message' : 'error'}">
-        {generateMessage}
-      </p>
-    {/if}
+      <h3>推薦碼</h3>
+      {#if user.referralCode}
+          <p>
+              <span class="icon">🔗</span>
+              您的推薦碼：<strong>{user.referralCode}</strong>
+          </p>
+          <button on:click={copyReferralCode} class="{currentTheme}">複製推薦碼</button>
+      {:else}
+          <p>您尚未生成推薦碼。</p>
+          <button
+              class="generate-button {currentTheme}"
+              on:click={handleGenerateCode}
+              disabled={generatingCode}
+          >
+              {generatingCode ? '生成中...' : '生成推薦碼'}
+          </button>
+      {/if}
+      {#if generateMessage}
+          <p class="{generateMessage.startsWith('生成') ? 'message' : 'error'}">
+              {generateMessage}
+          </p>
+      {/if}
   </div>
 
   <!-- 輸入推薦碼 -->
   <div class="section">
-    <h3>輸入推薦碼</h3>
-    <ReferralInput
-      on:success={handleReferralSuccess}
-      on:error={handleReferralError}
-      disabled={isSubmittingReferral}
-    />
-    {#if referralMessage}
-      <p class="{referralMessage.startsWith('推薦碼') ? 'message' : 'error'}">
-        {referralMessage}
-      </p>
-    {/if}
+      <h3>輸入推薦碼</h3>
+      <ReferralInput
+          on:success={handleReferralSuccess}
+          on:error={handleReferralError}
+          disabled={isSubmittingReferral}
+      />
+      {#if referralMessage}
+          <p class="{referralMessage.startsWith('推薦碼') ? 'message' : 'error'}">
+              {referralMessage}
+          </p>
+      {/if}
   </div>
 
-  <!-- 登出按鈕 -->
-  <form action="{base}/logout" method="post">
-    <button type="submit" class="sign-out-button {currentTheme}">
-      登出
-    </button>
-  </form>
+  <!-- 登出按鈕容器 -->
+  <div class="sign-out-container">
+      <form action="{base}/logout" method="post">
+          <button type="submit" class="sign-out-button {currentTheme}">
+              登出
+          </button>
+      </form>
+  </div>
 </div>
