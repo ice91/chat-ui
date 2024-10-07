@@ -1,6 +1,6 @@
 // src/lib/migrations/routines/09-create-referral-codes-collection.ts
 import { ObjectId } from "mongodb";
-import { Migration } from ".";
+import type { Migration } from ".";
 
 const createReferralCodesCollection: Migration = {
 	_id: new ObjectId("64f0c1f1f1f1f1f1f1f1f1f1"),

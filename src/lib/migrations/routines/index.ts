@@ -10,6 +10,7 @@ import trimMessageUpdates from "./06-trim-message-updates";
 import resetTools from "./07-reset-tools-in-settings";
 import addPointsAndStripeFields from "./08-add-points-and-stripe-fields";
 import createReferralCodesCollection from "./09-create-referral-codes-collection";
+import createProductEarningStorefrontOrder from "./10-create-product-earning-storefront-order";
 
 export interface Migration {
 	_id: ObjectId;
@@ -31,4 +32,5 @@ export const migrations: Migration[] = [
 	resetTools,
 	addPointsAndStripeFields,
 	createReferralCodesCollection,
+	createProductEarningStorefrontOrder, // 新增的遷移
 ];

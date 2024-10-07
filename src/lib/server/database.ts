@@ -15,6 +15,10 @@ import type { Semaphore } from "$lib/types/Semaphore";
 import type { AssistantStats } from "$lib/types/AssistantStats";
 import type { CommunityToolDB } from "$lib/types/Tool";
 import type { ReferralCode } from "$lib/types/ReferralCode"; // 新增的类型
+import type { Product } from "$lib/types/Product";
+import type { Earning } from "$lib/types/Earning";
+import type { Storefront } from "$lib/types/Storefront";
+import type { Order } from "$lib/types/Order";
 
 import { logger } from "$lib/server/logger";
 import { building } from "$app/environment";
@@ -91,6 +95,11 @@ export class Database {
 		const tools = db.collection<CommunityToolDB>("tools");
 		const referralCodes = db.collection<ReferralCode>("referralCodes"); // 新增的集合
 
+		const products = db.collection<Product>("products");
+		const earnings = db.collection<Earning>("earnings");
+		const storefronts = db.collection<Storefront>("storefronts");
+		const orders = db.collection<Order>("orders");
+
 		return {
 			conversations,
 			conversationStats,
@@ -109,6 +118,10 @@ export class Database {
 			tokenCaches,
 			tools,
 			referralCodes, // 添加到返回的对象中
+			products,
+			earnings,
+			storefronts,
+			orders,
 		};
 	}
 
@@ -132,7 +145,11 @@ export class Database {
 			semaphores,
 			tokenCaches,
 			tools,
-			referralCodes, // 引用新增的集合
+			referralCodes,
+			products,
+			earnings,
+			storefronts,
+			orders,
 		} = this.getCollections();
 
 		conversations
@@ -237,6 +254,27 @@ export class Database {
 		referralCodes.createIndex({ code: 1 }, { unique: true }).catch((e) => logger.error(e));
 		referralCodes.createIndex({ createdBy: 1 }).catch((e) => logger.error(e));
 		referralCodes.createIndex({ usedBy: 1 }, { sparse: true }).catch((e) => logger.error(e));
+
+		// 初始化 products 集合的索引
+		products.createIndex({ userId: 1 }).catch((e) => logger.error(e));
+		products
+			.createIndex({ shopifyProductId: 1 }, { unique: true, sparse: true })
+			.catch((e) => logger.error(e));
+		products.createIndex({ status: 1 }).catch((e) => logger.error(e));
+
+		// 初始化 earnings 集合的索引
+		earnings.createIndex({ userId: 1 }).catch((e) => logger.error(e));
+		earnings.createIndex({ orderId: 1 }, { unique: true }).catch((e) => logger.error(e));
+
+		// 初始化 storefronts 集合的索引
+		storefronts.createIndex({ userId: 1 }, { unique: true }).catch((e) => logger.error(e));
+		storefronts.createIndex({ storefrontUrl: 1 }, { unique: true }).catch((e) => logger.error(e));
+
+		// 初始化 orders 集合的索引
+		orders.createIndex({ shopifyOrderId: 1 }, { unique: true }).catch((e) => logger.error(e));
+		orders.createIndex({ productId: 1 }).catch((e) => logger.error(e));
+		orders.createIndex({ sellerId: 1 }).catch((e) => logger.error(e));
+		orders.createIndex({ status: 1 }).catch((e) => logger.error(e));
 	}
 }
 

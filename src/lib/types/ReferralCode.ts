@@ -4,8 +4,9 @@ import type { ObjectId } from "mongodb";
 export interface ReferralCode {
 	_id: ObjectId;
 	code: string;
-	createdBy: ObjectId; // 创建者的用户 ID
-	usedBy?: ObjectId; // 使用者的用户 ID（可选）
-	usedAt?: Date; // 使用时间（可选）
-	pointsAwarded: number; // 奖励的积分数
+	createdBy: ObjectId; // 創建者的用戶 ID
+	usedBy?: ObjectId; // 使用者的用戶 ID（可選）
+	usedAt?: Date; // 使用時間（可選）
+	pointsAwarded: number; // 獎勵的積分數
+	productId?: ObjectId; // 關聯的產品 ID
 }
