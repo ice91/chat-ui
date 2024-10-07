@@ -17,4 +17,5 @@ export interface User extends Timestamps {
 	hfUserId: string;
 	isAdmin?: boolean;
 	isEarlyAccess?: boolean;
+	roles?: string[]; // 新增欄位
 }

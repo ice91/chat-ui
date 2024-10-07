@@ -1,6 +1,6 @@
 // src/lib/migrations/routines/08-add-points-and-stripe-fields.ts
 import { ObjectId } from "mongodb";
-import { Migration } from ".";
+import type { Migration } from ".";
 import { collections } from "$lib/server/database";
 
 const addPointsAndStripeFields: Migration = {
@@ -29,6 +29,7 @@ const addPointsAndStripeFields: Migration = {
 				$set: {
 					points: 0,
 					subscriptionStatus: "inactive",
+					roles: ["seller"], // 新增預設角色
 				},
 				$unset: {
 					stripeCustomerId: "",
