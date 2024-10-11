@@ -6,7 +6,7 @@ export interface Order extends Timestamps {
 	shopifyOrderId: string;
 	productId: ObjectId;
 	sellerId: ObjectId;
-	amount: number;
+	totalAmount: number;
 	commission: number;
 	earnings: number;
 	status: "pending" | "completed" | "cancelled";

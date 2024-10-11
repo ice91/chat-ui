@@ -14,6 +14,8 @@ import type { Cookies } from "@sveltejs/kit";
 import { collections } from "$lib/server/database";
 import JSON5 from "json5";
 import { logger } from "$lib/server/logger";
+import jwt from "jsonwebtoken";
+const { verify } = jwt;
 
 export interface OIDCSettings {
 	redirectURI: string;
@@ -154,4 +156,48 @@ export async function validateAndParseCsrfToken(
 		logger.error(e);
 	}
 	return null;
+}
+
+/**
+ * 验证并解析 JWT，确保用户具有 'seller' 角色
+ */
+export async function authenticateSeller(request: Request): Promise<User> {
+	const authHeader = request.headers.get("Authorization");
+	const token = authHeader?.split(" ")[1] || request.cookies.get("jwt");
+
+	if (!token) {
+		throw error(401, "未授权");
+	}
+
+	const jwtSecret = env.JWT_SECRET;
+	if (!jwtSecret) {
+		throw error(500, "未配置JWT密钥");
+	}
+
+	try {
+		const decoded = verify(token, jwtSecret) as { userId: string; roles: string[] };
+
+		if (!decoded.roles.includes("seller")) {
+			throw error(403, "无访问权限");
+		}
+
+		const user = await collections.users.findOne({ _id: new ObjectId(decoded.userId) });
+
+		if (!user) {
+			throw error(404, "用户未找到");
+		}
+
+		return user;
+	} catch (err) {
+		console.error("Authentication error:", err);
+		throw error(401, "无效的令牌");
+	}
+}
+
+/**
+ * 中间件函数，确保用户具有 'seller' 角色
+ */
+export async function requireSeller(event: { request: Request; locals: User }) {
+	const user = await authenticateSeller(event.request);
+	return user;
 }

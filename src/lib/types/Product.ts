@@ -7,6 +7,7 @@ export interface Product extends Timestamps {
 	title: string;
 	description: string;
 	images: string[];
+	stock: number;
 	price: number;
 	shopifyProductId?: string;
 	podProductId?: string;
