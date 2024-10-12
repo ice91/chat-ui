@@ -8,7 +8,8 @@ import { collections } from "$lib/server/database";
 //import { addWeeks } from 'date-fns';
 //import { redirect, error } from '@sveltejs/kit';
 import { z } from "zod";
-import jwt from "jsonwebtoken";
+//import pkg from 'jsonwebtoken';
+//const { verify } = pkg;
 import { env } from "$env/dynamic/private";
 
 export const GET: RequestHandler = async ({ url, locals, request }) => {
