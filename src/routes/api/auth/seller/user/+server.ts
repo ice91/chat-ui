@@ -1,7 +1,9 @@
 // src/routes/api/auth/seller/user/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-import { verify } from "jsonwebtoken";
+//import { verify } from "jsonwebtoken";
+import pkg from "jsonwebtoken";
+const { verify } = pkg;
 import { collections } from "$lib/server/database";
 import { env } from "$env/dynamic/private";
 import { ObjectId } from "mongodb";
