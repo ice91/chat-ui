@@ -1,4 +1,5 @@
 // src/hooks.server.ts
+
 import { env } from "$env/dynamic/private";
 import { env as envPublic } from "$env/dynamic/public";
 import type { Handle, HandleServerError } from "@sveltejs/kit";
@@ -18,7 +19,7 @@ import { ObjectId } from "mongodb";
 import { refreshAssistantsCounts } from "$lib/jobs/refresh-assistants-counts";
 import { refreshConversationStats } from "$lib/jobs/refresh-conversation-stats";
 
-// TODO: move this code on a started server hook, instead of using a "building" flag
+// Initialize server components
 if (!building) {
 	logger.info("Starting server...");
 	initExitHandler();
@@ -36,9 +37,9 @@ if (!building) {
 	AbortedGenerations.getInstance();
 }
 
+// Handle server errors
 export const handleError: HandleServerError = async ({ error, event, status, message }) => {
-	// handle 404
-
+	// Handle errors
 	if (building) {
 		throw error;
 	}
@@ -68,6 +69,7 @@ export const handleError: HandleServerError = async ({ error, event, status, mes
 	};
 };
 
+// Main handle function with CORS configuration and path exclusions
 export const handle: Handle = async ({ event, resolve }) => {
 	logger.debug({
 		locals: event.locals,
@@ -76,9 +78,45 @@ export const handle: Handle = async ({ event, resolve }) => {
 		request: event.request,
 	});
 
+	// ======== Step 1: CORS Configuration ========
+
+	// Define allowed origins
+	const allowedOrigins = ["http://localhost:3000", "http://localhost:5173"];
+
+	// Get the Origin header from the request
+	const origin = event.request.headers.get("origin");
+
+	// Check if the request origin is allowed
+	const isAllowedOrigin = origin && allowedOrigins.includes(origin);
+
+	// Handle OPTIONS preflight requests
+	if (event.request.method === "OPTIONS") {
+		if (isAllowedOrigin) {
+			return new Response(null, {
+				status: 204,
+				headers: {
+					"Access-Control-Allow-Origin": origin,
+					"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					"Access-Control-Allow-Credentials": "true",
+				},
+			});
+		} else {
+			return new Response(null, {
+				status: 403,
+				statusText: "Forbidden",
+			});
+		}
+	}
+
+	// ======== Step 2: Existing API Exposure Logic ========
+
+	// Check if API is exposed
 	if (event.url.pathname.startsWith(`${base}/api/`) && env.EXPOSE_API !== "true") {
 		return new Response("API is disabled", { status: 403 });
 	}
+
+	// ======== Step 3: Error Response Utility Function ========
 
 	function errorResponse(status: number, message: string) {
 		const sendJson =
@@ -92,6 +130,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
+	// ======== Step 4: Admin Route Protection ========
+
 	if (event.url.pathname.startsWith(`${base}/admin/`) || event.url.pathname === `${base}/admin`) {
 		const ADMIN_SECRET = env.ADMIN_API_SECRET || env.PARQUET_EXPORT_SECRET;
 
@@ -103,6 +143,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return errorResponse(401, "Unauthorized");
 		}
 	}
+
+	// ======== Step 5: Session and User Management ========
 
 	const token = event.cookies.get(env.COOKIE_NAME);
 
@@ -210,6 +252,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	event.locals.sessionId = sessionId;
 
+	// ======== Step 6: CSRF Protection for POST Requests ========
+
 	// CSRF protection
 	const requestContentType = event.request.headers.get("content-type")?.split(";")[0] ?? "";
 	/** https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form#attr-enctype */
@@ -220,7 +264,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 	];
 
 	if (event.request.method === "POST") {
-		refreshSessionCookie(event.cookies, event.locals.sessionId);
+		// Define paths to exclude from automatic session refresh (e.g., /logout)
+		const excludedPaths = [`${base}/logout`];
+
+		if (!excludedPaths.includes(event.url.pathname)) {
+			refreshSessionCookie(event.cookies, secretSessionId);
+
+			await collections.sessions.updateOne(
+				{ sessionId },
+				{ $set: { updatedAt: new Date(), expiresAt: addWeeks(new Date(), 2) } }
+			);
+		}
 
 		if (nativeFormContentTypes.includes(requestContentType)) {
 			const origin = event.request.headers.get("origin");
@@ -240,15 +294,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	if (event.request.method === "POST") {
-		// if the request is a POST request we refresh the cookie
-		refreshSessionCookie(event.cookies, secretSessionId);
-
-		await collections.sessions.updateOne(
-			{ sessionId },
-			{ $set: { updatedAt: new Date(), expiresAt: addWeeks(new Date(), 2) } }
-		);
-	}
+	// ======== Step 7: Authentication and Authorization Checks ========
 
 	if (
 		!event.url.pathname.startsWith(`${base}/login`) &&
@@ -282,9 +328,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	}
 
+	// ======== Step 8: Replace %gaId% in HTML ========
+
 	let replaced = false;
 
-	const response = await resolve(event, {
+	const finalResponse = await resolve(event, {
 		transformPageChunk: (chunk) => {
 			// For some reason, Sveltekit doesn't let us load env variables from .env in the app.html template
 			if (replaced || !chunk.html.includes("%gaId%")) {
@@ -296,5 +344,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		},
 	});
 
-	return response;
+	// ======== Step 9: Add CORS Headers to the Response ========
+
+	if (isAllowedOrigin) {
+		finalResponse.headers.set("Access-Control-Allow-Origin", origin);
+		finalResponse.headers.set("Access-Control-Allow-Credentials", "true");
+	}
+
+	// ======== Step 10: Return the Final Response ========
+
+	return finalResponse;
 };
