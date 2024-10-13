@@ -1,7 +1,10 @@
 // src/routes/api/auth/seller/callback/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
+import {
+	getOIDCUserData,
+	validateAndParseCsrfToken /*, extractRedirectUrl*/,
+} from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 //import { ObjectId } from 'mongodb';
 //import { sha256 } from '$lib/utils/sha256';
@@ -36,6 +39,10 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 	if (!validatedToken) {
 		throw error(403, "Invalid or expired CSRF token");
 	}
+
+	const validatedToken = { redirectUrl: extractRedirectUrl(csrfToken) }; // Replace with appropriate value
+	//const redirectUrl = extractRedirectUrl(csrfToken);
+	console.log(validatedToken.redirectUrl);
 
 	// 获取用户数据
 	const { userData, token } = await getOIDCUserData(

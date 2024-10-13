@@ -1,3 +1,5 @@
+// src/lib/server/auth.ts
+
 import {
 	Issuer,
 	type BaseClient,
@@ -156,6 +158,18 @@ export async function validateAndParseCsrfToken(
 		logger.error(e);
 	}
 	return null;
+}
+
+export function extractRedirectUrl(token: string): string | null {
+	try {
+		const parsedToken = JSON.parse(token); // 解析 token 字串
+		if (parsedToken && parsedToken.data && parsedToken.data.redirectUrl) {
+			return parsedToken.data.redirectUrl; // 直接提取 redirectUrl
+		}
+	} catch (e) {
+		console.error("Invalid token format:", e);
+	}
+	return null; // 如果解析失敗或找不到 redirectUrl，回傳 null
 }
 
 /**
