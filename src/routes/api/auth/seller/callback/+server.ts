@@ -1,21 +1,15 @@
 // src/routes/api/auth/seller/callback/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-import {
-	getOIDCUserData,
-	validateAndParseCsrfToken /*, extractRedirectUrl*/,
-} from "$lib/server/auth";
+import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 //import { ObjectId } from 'mongodb';
-//import { sha256 } from '$lib/utils/sha256';
-//import { addWeeks } from 'date-fns';
-//import { redirect, error } from '@sveltejs/kit';
 import { z } from "zod";
 import jwt from "jsonwebtoken";
-import { error } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
+import { error, redirect } from "@sveltejs/kit";
 
-export const GET: RequestHandler = async ({ url, locals, request }) => {
+export const GET: RequestHandler = async ({ url, locals /*, request*/ }) => {
 	const params = Object.fromEntries(url.searchParams.entries());
 
 	// 验证回调参数
@@ -40,29 +34,22 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 		throw error(403, "Invalid or expired CSRF token");
 	}
 
-	const validatedToken = { redirectUrl: extractRedirectUrl(csrfToken) }; // Replace with appropriate value
-	//const redirectUrl = extractRedirectUrl(csrfToken);
-	console.log(validatedToken.redirectUrl);
-
 	// 获取用户数据
-	const { userData, token } = await getOIDCUserData(
+	const { userData } = await getOIDCUserData(
 		{ redirectURI: validatedToken.redirectUrl },
 		code,
 		iss
 	);
-	console.log(token);
-	console.log(request);
 
 	const email = userData.email;
 	if (!email) {
 		throw error(400, "Email not provided by OIDC provider");
 	}
 
-	// 查找现有用户
+	// 查找或创建用户，并赋予 'seller' 角色
 	let user = await collections.users.findOne({ email });
 
 	if (!user) {
-		// 创建新用户，并赋予 'seller' 角色
 		const newUser = {
 			username: userData.preferred_username || email,
 			name: userData.name,
@@ -91,6 +78,7 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 				},
 			}
 		);
+		user.roles = user.roles || [];
 	}
 
 	// 生成 JWT
@@ -106,14 +94,9 @@ export const GET: RequestHandler = async ({ url, locals, request }) => {
 
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
-	// 设置 JWT 在 HttpOnly Cookie 中
-	return new Response(null, {
-		status: 302,
-		headers: {
-			"Set-Cookie": `jwt=${jwtToken}; HttpOnly; Path=/; Max-Age=${
-				60 * 60 * 2
-			}; Secure; SameSite=Strict`,
-			Location: validatedToken.redirectUrl,
-		},
-	});
+	// 构建前端回调 URL，包含 JWT 作为查询参数
+	const frontendCallbackUrl = `${env.PUBLIC_FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
+
+	// 重定向到前端回调 URL
+	throw redirect(302, frontendCallbackUrl);
 };
