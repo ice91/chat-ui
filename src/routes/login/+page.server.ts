@@ -1,3 +1,5 @@
+// src/routes/login/+page.server.ts
+
 import { redirect } from "@sveltejs/kit";
 import { getOIDCAuthorizationUrl } from "$lib/server/auth";
 import { base } from "$app/paths";

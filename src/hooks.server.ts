@@ -81,7 +81,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// ======== Step 1: CORS Configuration ========
 
 	// Define allowed origins
-	const allowedOrigins = ["http://localhost:3000", "http://localhost:5173"];
+	const allowedOrigins = ["http://localhost:3000"];
 
 	// Get the Origin header from the request
 	const origin = event.request.headers.get("origin");
