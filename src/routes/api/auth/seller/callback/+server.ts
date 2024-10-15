@@ -1,15 +1,14 @@
 // src/routes/api/auth/seller/callback/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
+import { getOIDCUserData, validateAndParseCsrfToken_seller } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
-//import { ObjectId } from 'mongodb';
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import { env } from "$env/dynamic/private";
 import { error, redirect } from "@sveltejs/kit";
 
-export const GET: RequestHandler = async ({ url, locals /*, request*/ }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	const params = Object.fromEntries(url.searchParams.entries());
 
 	// 验证回调参数
@@ -27,12 +26,14 @@ export const GET: RequestHandler = async ({ url, locals /*, request*/ }) => {
 	const { code, state, iss } = result.data;
 
 	// 解析并验证 CSRF Token
-	const csrfToken = Buffer.from(state, "base64").toString("utf-8");
-	const validatedToken = await validateAndParseCsrfToken(csrfToken, locals.sessionId);
+	const validatedToken = await validateAndParseCsrfToken_seller(state);
 
 	if (!validatedToken) {
 		throw error(403, "Invalid or expired CSRF token");
 	}
+
+	// 将 sessionId 设置到 locals 中
+	locals.sessionId = validatedToken.sessionId;
 
 	// 获取用户数据
 	const { userData } = await getOIDCUserData(
