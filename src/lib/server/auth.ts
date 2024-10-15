@@ -160,6 +160,30 @@ export async function validateAndParseCsrfToken(
 	return null;
 }
 
+export async function validateAndParseCsrfToken_seller(
+	state: string
+): Promise<{ sessionId: string; redirectUrl: string } | null> {
+	try {
+		const decoded = jwt.verify(state, env.JWT_SECRET) as {
+			sessionId: string;
+			redirectUrl: string;
+			expiration: number;
+		};
+
+		if (decoded.expiration < Date.now()) {
+			return null;
+		}
+
+		return {
+			sessionId: decoded.sessionId,
+			redirectUrl: decoded.redirectUrl,
+		};
+	} catch (err) {
+		console.error("Failed to validate CSRF token:", err);
+		return null;
+	}
+}
+
 export function extractRedirectUrl(token: string): string | null {
 	try {
 		const parsedToken = JSON.parse(token); // 解析 token 字串
