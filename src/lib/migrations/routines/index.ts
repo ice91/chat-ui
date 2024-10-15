@@ -11,6 +11,7 @@ import resetTools from "./07-reset-tools-in-settings";
 import addPointsAndStripeFields from "./08-add-points-and-stripe-fields";
 import createReferralCodesCollection from "./09-create-referral-codes-collection";
 import createProductEarningStorefrontOrder from "./10-create-product-earning-storefront-order";
+import createStateStore from "./11-create-stateStore-collection";
 
 export interface Migration {
 	_id: ObjectId;
@@ -33,4 +34,5 @@ export const migrations: Migration[] = [
 	addPointsAndStripeFields,
 	createReferralCodesCollection,
 	createProductEarningStorefrontOrder, // 新增的遷移
+	createStateStore,
 ];

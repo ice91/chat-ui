@@ -19,6 +19,7 @@ import type { Product } from "$lib/types/Product";
 import type { Earning } from "$lib/types/Earning";
 import type { Storefront } from "$lib/types/Storefront";
 import type { Order } from "$lib/types/Order";
+import type { StateStore } from "$lib/types/StateStore";
 
 import { logger } from "$lib/server/logger";
 import { building } from "$app/environment";
@@ -99,6 +100,8 @@ export class Database {
 		const earnings = db.collection<Earning>("earnings");
 		const storefronts = db.collection<Storefront>("storefronts");
 		const orders = db.collection<Order>("orders");
+		// 添加 stateStore 集合
+		const stateStore = db.collection<StateStore>("stateStore");
 
 		return {
 			conversations,
@@ -122,6 +125,7 @@ export class Database {
 			earnings,
 			storefronts,
 			orders,
+			stateStore, // 新增的 stateStore 集合
 		};
 	}
 
@@ -150,6 +154,7 @@ export class Database {
 			earnings,
 			storefronts,
 			orders,
+			stateStore, // 获取 stateStore
 		} = this.getCollections();
 
 		conversations
@@ -275,6 +280,11 @@ export class Database {
 		orders.createIndex({ productId: 1 }).catch((e) => logger.error(e));
 		orders.createIndex({ sellerId: 1 }).catch((e) => logger.error(e));
 		orders.createIndex({ status: 1 }).catch((e) => logger.error(e));
+		// 创建 stateStore 的索引
+		stateStore.createIndex({ state: 1 }, { unique: true }).catch((e) => logger.error(e));
+		stateStore
+			.createIndex({ expiration: 1 }, { expireAfterSeconds: 0 })
+			.catch((e) => logger.error(e));
 	}
 }
 
