@@ -1,3 +1,5 @@
+// src/routes/login/callback/+page.server.ts
+
 import { redirect, error } from "@sveltejs/kit";
 import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
 import { z } from "zod";
@@ -10,7 +12,7 @@ const allowedUserEmails = z
 	.array(z.string().email())
 	.optional()
 	.default([])
-	.parse(JSON5.parse(env.ALLOWED_USER_EMAILS));
+	.parse(JSON5.parse(env.ALLOWED_USER_EMAILS || "[]"));
 
 export async function load({ url, locals, cookies, request, getClientAddress }) {
 	const { error: errorName, error_description: errorDescription } = z
@@ -21,7 +23,7 @@ export async function load({ url, locals, cookies, request, getClientAddress }) 
 		.parse(Object.fromEntries(url.searchParams.entries()));
 
 	if (errorName) {
-		error(400, errorName + (errorDescription ? ": " + errorDescription : ""));
+		throw error(400, errorName + (errorDescription ? ": " + errorDescription : ""));
 	}
 
 	const { code, state, iss } = z
@@ -32,13 +34,15 @@ export async function load({ url, locals, cookies, request, getClientAddress }) 
 		})
 		.parse(Object.fromEntries(url.searchParams.entries()));
 
-	const csrfToken = Buffer.from(state, "base64").toString("utf-8");
-
-	const validatedToken = await validateAndParseCsrfToken(csrfToken, locals.sessionId);
+	// 使用新的 validateAndParseCsrfToken 函数
+	const validatedToken = await validateAndParseCsrfToken(state);
 
 	if (!validatedToken) {
-		error(403, "Invalid or expired CSRF token");
+		throw error(403, "Invalid or expired CSRF token");
 	}
+
+	// 将 sessionId 设置到 locals 中
+	locals.sessionId = validatedToken.sessionId;
 
 	const { userData } = await getOIDCUserData(
 		{ redirectURI: validatedToken.redirectUrl },
@@ -46,17 +50,17 @@ export async function load({ url, locals, cookies, request, getClientAddress }) 
 		iss
 	);
 
-	// Filter by allowed user emails
+	// 过滤允许的用户邮箱
 	if (allowedUserEmails.length > 0) {
 		if (!userData.email) {
-			error(403, "User not allowed: email not returned");
+			throw error(403, "User not allowed: email not returned");
 		}
 		const emailVerified = userData.email_verified ?? true;
 		if (!emailVerified) {
-			error(403, "User not allowed: email not verified");
+			throw error(403, "User not allowed: email not verified");
 		}
 		if (!allowedUserEmails.includes(userData.email)) {
-			error(403, "User not allowed");
+			throw error(403, "User not allowed");
 		}
 	}
 
@@ -68,5 +72,5 @@ export async function load({ url, locals, cookies, request, getClientAddress }) 
 		ip: getClientAddress(),
 	});
 
-	redirect(302, `${base}/`);
+	throw redirect(302, `${base}/`);
 }
