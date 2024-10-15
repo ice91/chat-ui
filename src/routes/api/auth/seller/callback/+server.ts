@@ -1,11 +1,9 @@
 // src/routes/api/auth/seller/callback/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-import { getOIDCUserData, validateAndParseCsrfToken_seller } from "$lib/server/auth";
+import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { z } from "zod";
-import jwt from "jsonwebtoken";
-import { env } from "$env/dynamic/private";
 import { error, redirect } from "@sveltejs/kit";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -25,8 +23,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const { code, state, iss } = result.data;
 
-	// 解析并验证 CSRF Token
-	const validatedToken = await validateAndParseCsrfToken_seller(state);
+	// 验证并解析 CSRF Token（state 参数）
+	const validatedToken = await validateAndParseCsrfToken(state);
 
 	if (!validatedToken) {
 		throw error(403, "Invalid or expired CSRF token");
@@ -51,7 +49,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	let user = await collections.users.findOne({ email });
 
 	if (!user) {
-		const newUser = {
+		const newUser: Partial<User> = {
 			username: userData.preferred_username || email,
 			name: userData.name,
 			email,
@@ -65,7 +63,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		};
 
 		const insertResult = await collections.users.insertOne(newUser);
-		user = { ...newUser, _id: insertResult.insertedId };
+		user = { ...newUser, _id: insertResult.insertedId } as User;
 	} else {
 		// 更新现有用户信息
 		await collections.users.updateOne(
@@ -79,7 +77,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				},
 			}
 		);
+
 		user.roles = user.roles || [];
+		if (!user.roles.includes("seller")) {
+			user.roles.push("seller");
+			await collections.users.updateOne({ _id: user._id }, { $set: { roles: user.roles } });
+		}
 	}
 
 	// 生成 JWT
