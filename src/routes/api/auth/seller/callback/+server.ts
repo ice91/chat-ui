@@ -101,8 +101,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
 	// 构建前端回调 URL，包含 JWT 作为查询参数
-	const frontendCallbackUrl = `${env.PUBLIC_FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
-	//const frontendCallbackUrl = `https://01ja71vzgdb0kfm0tmmn5480t3-827ba860dd475bd1fc22.myshopify.dev/auth/callback?token=${jwtToken}`;
+	//const frontendCallbackUrl = `${env.PUBLIC_FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
+	const frontendCallbackUrl = `https://01ja71vzgdb0kfm0tmmn5480t3-827ba860dd475bd1fc22.myshopify.dev/auth/callback?token=${jwtToken}`;
 
 	// 重定向到前端回调 URL
 	throw redirect(302, frontendCallbackUrl);
