@@ -3,14 +3,16 @@
 import type { RequestHandler } from "@sveltejs/kit";
 import { getOIDCAuthorizationUrl } from "$lib/server/auth";
 import { redirect } from "@sveltejs/kit";
-import { base } from "$app/paths";
+//import { base } from "$app/paths";
+import { env } from "$env/dynamic/private";
 
-export const GET: RequestHandler = async ({ url, locals, request }) => {
+export const GET: RequestHandler = async ({ /*url,*/ locals /*, request*/ }) => {
 	// 生成回调 URI
-	const referer = request.headers.get("referer");
-	const redirectURI = `${
+	//const referer = request.headers.get("referer");
+	const redirectURI = `${env.PUBLIC_ORIGIN}/api/auth/seller/callback`;
+	/*const redirectURI = `${
 		referer ? new URL(referer).origin : url.origin
-	}${base}/api/auth/seller/callback`;
+	}${base}/api/auth/seller/callback`;*/
 
 	console.log("Redirect URI:", redirectURI);
 
