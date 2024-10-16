@@ -81,7 +81,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// ======== Step 1: CORS Configuration ========
 
 	// Define allowed origins
-	const allowedOrigins = ["http://localhost:3000"];
+	const allowedOrigins = [
+		"https://01ja74vd3j52xmzffynj6d1vdz-827ba860dd475bd1fc22.myshopify.dev",
+		"https://canvastalk-867062847423.asia-east1.run.app",
+	];
 
 	// Get the Origin header from the request
 	const origin = event.request.headers.get("origin");

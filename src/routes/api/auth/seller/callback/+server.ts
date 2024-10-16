@@ -5,6 +5,8 @@ import { getOIDCUserData, validateAndParseCsrfToken } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { z } from "zod";
 import { error, redirect } from "@sveltejs/kit";
+import { env } from "$env/dynamic/private";
+import jwt from "jsonwebtoken";
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const params = Object.fromEntries(url.searchParams.entries());
