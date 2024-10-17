@@ -103,7 +103,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	// 构建前端回调 URL，包含 JWT 作为查询参数
 	//const frontendCallbackUrl = env.PUBLIC_FRONTEND_BASE_URL+`/auth/callback?token=${jwtToken}`;
 	//const frontendCallbackUrl = `https://01ja71vzgdb0kfm0tmmn5480t3-827ba860dd475bd1fc22.myshopify.dev/auth/callback?token=${jwtToken}`;
-	const frontendCallbackUrl = `https://01jacmbmz4ncnrxb6r0p20t738-080c2d313b7fa2451135.myshopify.dev/auth/callback?token=${jwtToken}`;
+	const frontendCallbackUrl = `https://hydrogen-storefront-021ec2cdd6d2ef3c559d.o2.myshopify.dev/auth/callback?token=${jwtToken}`;
 
 	// 重定向到前端回调 URL
 	throw redirect(302, frontendCallbackUrl);
