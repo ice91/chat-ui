@@ -82,6 +82,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Define allowed origins
 	const allowedOrigins = [
+		"https://01jad2xd557hhwjtx6apjk4s7e-021ec2cdd6d2ef3c559d.myshopify.dev",
 		"https://01ja74vd3j52xmzffynj6d1vdz-827ba860dd475bd1fc22.myshopify.dev",
 		"https://canvastalk-867062847423.asia-east1.run.app",
 	];
