@@ -19,6 +19,7 @@ export const GET: RequestHandler = async ({ request }) => {
 	}
 
 	const jwtSecret = env.JWT_SECRET;
+	console.log(jwtSecret);
 	if (!jwtSecret) {
 		return new Response(JSON.stringify({ error: "未配置JWT密钥" }), { status: 500 });
 	}
