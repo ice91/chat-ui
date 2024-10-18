@@ -15,6 +15,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw new Error("Server configuration error: BACKEND_BASE_URL is not set");
 	}
 
+	console.log(env.BACKEND_BASE_URL);
 	console.log("Redirect URI:", redirectURI);
 
 	// 获取授权 URL，包含 sessionId 在 state 中

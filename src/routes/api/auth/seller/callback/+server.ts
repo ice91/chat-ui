@@ -18,6 +18,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		iss: z.string().optional(),
 	});
 
+	// 生成 JWT
+	const jwtSecret = env.JWT_SECRET;
+	console.log(env.JWT_SECRET);
+	// 构建前端回调 URL，包含 JWT 作为查询参数
+	console.log(env.FRONTEND_BASE_URL);
+
 	const result = schema.safeParse(params);
 	if (!result.success) {
 		throw error(400, "Invalid callback parameters");
@@ -25,9 +31,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const { code, state, iss } = result.data;
 
+	console.log(`state:${state}`);
 	// 验证并解析 CSRF Token（state 参数）
 	const validatedToken = await validateAndParseCsrfToken(state);
 
+	console.log(`validateToken.sessionId:${validatedToken?.sessionId}`);
+	console.log(`validateToken.redirectUrl:${validatedToken?.redirectUrl}`);
 	if (!validatedToken) {
 		throw error(403, "Invalid or expired CSRF token");
 	}
@@ -87,8 +96,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 	}
 
-	// 生成 JWT
-	const jwtSecret = env.JWT_SECRET;
 	if (!jwtSecret) {
 		throw error(500, "JWT secret not configured");
 	}
@@ -100,11 +107,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
-	// 构建前端回调 URL，包含 JWT 作为查询参数
-	//const frontendCallbackUrl = env.PUBLIC_FRONTEND_BASE_URL+`/auth/callback?token=${jwtToken}`;
-	const frontendCallbackUrl = `https://01jacs2zqp1jj1qfrn04ee70h7-021ec2cdd6d2ef3c559d.myshopify.dev/auth/callback?token=${jwtToken}`;
-	//const frontendCallbackUrl = `https://hydrogen-storefront-021ec2cdd6d2ef3c559d.o2.myshopify.dev/auth/callback?token=${jwtToken}`;
-
+	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
 	// 重定向到前端回调 URL
 	throw redirect(302, frontendCallbackUrl);
 };
