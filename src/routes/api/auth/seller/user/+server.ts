@@ -44,6 +44,8 @@ export const GET: RequestHandler = async ({ request }) => {
 			name: user.name,
 			email: user.email,
 			avatarUrl: user.avatarUrl || null,
+			points: user.points,
+			code: user.referralCode,
 			roles: user.roles,
 			// 可根据需求添加更多字段
 		};
