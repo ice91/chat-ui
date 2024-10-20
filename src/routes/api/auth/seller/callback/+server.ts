@@ -8,10 +8,10 @@ import { error, redirect } from "@sveltejs/kit";
 import { env } from "$env/dynamic/private";
 import jwt from "jsonwebtoken";
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 	const params = Object.fromEntries(url.searchParams.entries());
 
-	// 验证回调参数
+	// 驗證回調參數
 	const schema = z.object({
 		code: z.string(),
 		state: z.string(),
@@ -21,8 +21,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	// 生成 JWT
 	const jwtSecret = env.JWT_SECRET;
 	console.log(env.JWT_SECRET);
-	// 构建前端回调 URL，包含 JWT 作为查询参数
-	console.log(env.FRONTEND_BASE_URL);
+	// 構建前端回調 URL，不再包含 token 參數
+	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback`;
 
 	const result = schema.safeParse(params);
 	if (!result.success) {
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const { code, state, iss } = result.data;
 
 	console.log(`state:${state}`);
-	// 验证并解析 CSRF Token（state 参数）
+	// 驗證並解析 CSRF Token（state 參數）
 	const validatedToken = await validateAndParseCsrfToken(state);
 
 	console.log(`validateToken.sessionId:${validatedToken?.sessionId}`);
@@ -41,10 +41,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		throw error(403, "Invalid or expired CSRF token");
 	}
 
-	// 将 sessionId 设置到 locals 中
+	// 將 sessionId 設置到 locals 中
 	locals.sessionId = validatedToken.sessionId;
 
-	// 获取用户数据
+	// 獲取用戶數據
 	const { userData } = await getOIDCUserData(
 		{ redirectURI: validatedToken.redirectUrl },
 		code,
@@ -56,7 +56,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		throw error(400, "Email not provided by OIDC provider");
 	}
 
-	// 查找或创建用户，并赋予 'seller' 角色
+	// 查找或創建用戶，並賦予 'seller' 角色
 	let user = await collections.users.findOne({ email });
 
 	if (!user) {
@@ -64,7 +64,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			username: userData.preferred_username || email,
 			name: userData.name,
 			email,
-			roles: ["seller"], // 赋予 'seller' 角色
+			roles: ["seller"], // 賦予 'seller' 角色
 			avatarUrl: userData.picture || "",
 			hfUserId: userData.sub,
 			points: 0,
@@ -76,7 +76,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const insertResult = await collections.users.insertOne(newUser);
 		user = { ...newUser, _id: insertResult.insertedId } as User;
 	} else {
-		// 更新现有用户信息
+		// 更新現有用戶信息
 		await collections.users.updateOne(
 			{ _id: user._id },
 			{
@@ -107,7 +107,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
-	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
-	// 重定向到前端回调 URL
+	// 設置 JWT 為 Cookie
+	cookies.set("jwt", jwtToken, {
+		httpOnly: true,
+		secure: true, // 在 HTTPS 下設置為 true
+		sameSite: "none", // 允許跨站點 Cookie
+		path: "/", // Cookie 的有效路徑
+		maxAge: 60 * 60 * 2, // 2 小時（以秒為單位）
+	});
+
+	// 重定向到前端回調 URL，不再包含 JWT
 	throw redirect(302, frontendCallbackUrl);
 };
