@@ -1,4 +1,4 @@
-// src/hooks.server.ts
+// app/hooks.server.ts
 
 import { env } from "$env/dynamic/private";
 import { env as envPublic } from "$env/dynamic/public";
