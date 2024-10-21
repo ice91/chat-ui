@@ -1,43 +1,58 @@
 // src/routes/api/auth/seller/user/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
-//import { verify } from "jsonwebtoken";
 import pkg from "jsonwebtoken";
 const { verify } = pkg;
 import { collections } from "$lib/server/database";
 import { env } from "$env/dynamic/private";
 import { ObjectId } from "mongodb";
-//import { error } from '@sveltejs/kit';
-//import type { User } from '$lib/types/User';
 
 export const GET: RequestHandler = async ({ request }) => {
-	const authHeader = request.headers.get("Authorization");
-	const token = authHeader?.split(" ")[1] || request.cookies.get("jwt");
-
-	if (!token) {
-		return new Response(JSON.stringify({ error: "未授权" }), { status: 401 });
-	}
-
-	const jwtSecret = env.JWT_SECRET;
-	console.log(jwtSecret);
-	if (!jwtSecret) {
-		return new Response(JSON.stringify({ error: "未配置JWT密钥" }), { status: 500 });
-	}
-
 	try {
-		const decoded = verify(token, jwtSecret) as { userId: string; roles: string[] };
+		const authHeader = request.headers.get("Authorization");
+		const token = authHeader?.split(" ")[1] || request.cookies.get("jwt");
 
-		if (!decoded.roles.includes("seller")) {
-			return new Response(JSON.stringify({ error: "无访问权限" }), { status: 403 });
+		if (!token) {
+			console.error("No token provided in Authorization header or cookies.");
+			return new Response(JSON.stringify({ error: "未授權" }), { status: 401 });
 		}
 
-		const user = await collections.users.findOne({ _id: new ObjectId(decoded.userId) });
+		const jwtSecret = env.JWT_SECRET;
+		if (!jwtSecret) {
+			console.error("JWT_SECRET is not defined in environment variables.");
+			return new Response(JSON.stringify({ error: "未配置JWT密鑰" }), { status: 500 });
+		}
+
+		let decoded: { userId: string; roles: string[] };
+		try {
+			decoded = verify(token, jwtSecret) as { userId: string; roles: string[] };
+			console.log("Decoded JWT:", decoded);
+		} catch (err) {
+			console.error("JWT verification failed:", err);
+			return new Response(JSON.stringify({ error: "無效的令牌" }), { status: 401 });
+		}
+
+		if (!decoded.roles || !decoded.roles.includes("seller")) {
+			console.error("User does not have 'seller' role.");
+			return new Response(JSON.stringify({ error: "無訪問權限" }), { status: 403 });
+		}
+
+		let objectId: ObjectId;
+		try {
+			objectId = new ObjectId(decoded.userId);
+		} catch (err) {
+			console.error("Invalid userId in JWT:", err);
+			return new Response(JSON.stringify({ error: "無效的用戶ID" }), { status: 400 });
+		}
+
+		const user = await collections.users.findOne({ _id: objectId });
 
 		if (!user) {
-			return new Response(JSON.stringify({ error: "用户未找到" }), { status: 404 });
+			console.error("User not found for userId:", decoded.userId);
+			return new Response(JSON.stringify({ error: "用戶未找到" }), { status: 404 });
 		}
 
-		// 返回用户数据
+		// 返回用戶數據
 		const userData = {
 			id: user._id.toString(),
 			username: user.username,
@@ -47,12 +62,14 @@ export const GET: RequestHandler = async ({ request }) => {
 			points: user.points,
 			code: user.referralCode,
 			roles: user.roles,
-			// 可根据需求添加更多字段
+			// 可根據需求添加更多字段
 		};
+
+		console.log("User data fetched successfully:", userData);
 
 		return new Response(JSON.stringify({ user: userData }), { status: 200 });
 	} catch (err) {
-		console.error("JWT verification error:", err);
-		return new Response(JSON.stringify({ error: "无效的令牌" }), { status: 401 });
+		console.error("Unhandled error in /api/auth/seller/user:", err);
+		return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
 	}
 };
