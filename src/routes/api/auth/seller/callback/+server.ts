@@ -125,7 +125,7 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
       <title>Authentication Successful</title>
     </head>
     <body>
-      <p>认证成功，正在跳转...</p>
+      <p>Authentication successful, redirecting...</p>
       <script>
         window.location.href = '${frontendCallbackUrl}';
       </script>
