@@ -299,6 +299,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (
 		!event.url.pathname.startsWith(`${base}/login`) &&
 		!event.url.pathname.startsWith(`${base}/admin`) &&
+		!event.url.pathname.startsWith(`${base}/api/gelato/webhooks`) && // 排除 webhook 路径
 		!["GET", "OPTIONS", "HEAD"].includes(event.request.method)
 	) {
 		if (
@@ -309,9 +310,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return errorResponse(401, ERROR_MESSAGES.authOnly);
 		}
 
-		// if login is not required and the call is not from /settings and we display the ethics modal with PUBLIC_APP_DISCLAIMER
-		//  we check if the user has accepted the ethics modal first.
-		// If login is required, `ethicsModalAcceptedAt` is already true at this point, so do not pass this condition. This saves a DB call.
+		// 如果不需要登录，并且请求路径不是 /settings，并且启用了 PUBLIC_APP_DISCLAIMER
+		// 则检查用户是否已接受欢迎模态窗口
 		if (
 			!requiresUser &&
 			!event.url.pathname.startsWith(`${base}/settings`) &&
