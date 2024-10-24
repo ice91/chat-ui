@@ -1,16 +1,12 @@
 // src/lib/server/gelatoWebhookVerification.ts
 
-import { env } from "$env/dynamic/private";
-import type { Request } from "@sveltejs/kit";
 import crypto from "crypto";
+import { env } from "$env/dynamic/private";
 
-/**
- * 验证 Gelato Webhook 请求的合法性
- */
 export async function verifyGelatoWebhookRequest(request: Request): Promise<boolean> {
 	const signature = request.headers.get("X-Gelato-Signature");
 	if (!signature) {
-		console.warn("缺少签名头部");
+		console.warn("缺少 X-Gelato-Signature 標頭");
 		return false;
 	}
 
@@ -28,7 +24,7 @@ export async function verifyGelatoWebhookRequest(request: Request): Promise<bool
 
 	const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computedSignature));
 	if (!isValid) {
-		console.warn("签名验证失败");
+		console.warn("簽名驗證失敗");
 	}
 
 	return isValid;
