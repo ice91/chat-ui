@@ -7,19 +7,19 @@ import {
 	type UserinfoResponse,
 	type TokenSet,
 } from "openid-client";
-import { /*addHours,*/ addWeeks } from "date-fns";
+import { addWeeks } from "date-fns";
 import { env } from "$env/dynamic/private";
 import { z } from "zod";
 import { dev } from "$app/environment";
-import type { Cookies } from "@sveltejs/kit";
+import type { Cookies /*, RequestEvent*/ } from "@sveltejs/kit";
 import { collections } from "$lib/server/database";
 import JSON5 from "json5";
-//import { logger } from "$lib/server/logger";
 import jwt from "jsonwebtoken";
+import type { JwtPayload } from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import { error } from "@sveltejs/kit";
 import crypto from "crypto";
-import type { User } from "$lib/types/User"; // 確保已正確導入
+import type { User } from "$lib/types/User"; // 确保已正确导入
 
 export interface OIDCSettings {
 	redirectURI: string;
@@ -174,6 +174,38 @@ export async function validateAndParseCsrfToken(
 }
 
 /**
+ * 验证 JWT 并返回解码的负载
+ */
+export function verifyJWT(token: string, secret: string): JwtPayload {
+	try {
+		const decoded = jwt.verify(token, secret) as JwtPayload;
+		return decoded;
+	} catch (err) {
+		console.error("JWT 验证失败：", err);
+		throw new Error("无效的令牌");
+	}
+}
+
+/**
+ * 生成包含 userId 和 roles 的 JWT 令牌
+ */
+export function generateJWT(user: User): string {
+	const jwtSecret = env.JWT_SECRET;
+	if (!jwtSecret) {
+		throw new Error("未配置 JWT 密钥");
+	}
+
+	const payload = {
+		userId: user._id.toString(),
+		roles: user.roles, // 确保用户对象中有 roles 字段
+	};
+
+	const token = jwt.sign(payload, jwtSecret, { expiresIn: "7d" }); // 令牌有效期为7天，可根据需求调整
+
+	return token;
+}
+
+/**
  * 认证卖家用户，确保用户具有 'seller' 角色
  */
 export async function authenticateSeller(request: Request): Promise<User> {
@@ -190,9 +222,47 @@ export async function authenticateSeller(request: Request): Promise<User> {
 	}
 
 	try {
-		const decoded = jwt.verify(token, jwtSecret) as { userId: string; roles: string[] };
+		const decoded = verifyJWT(token, jwtSecret);
 
-		if (!decoded.roles.includes("seller")) {
+		if (!decoded.roles || !decoded.roles.includes("seller")) {
+			throw error(403, "无访问权限");
+		}
+
+		const user = (await collections.users.findOne({
+			_id: new ObjectId(decoded.userId),
+		})) as User | null;
+
+		if (!user) {
+			throw error(404, "用户未找到");
+		}
+
+		return user;
+	} catch (err) {
+		console.error("Authentication error:", err);
+		throw error(401, "无效的令牌");
+	}
+}
+
+/**
+ * 认证普通用户，确保用户具有 'user' 角色
+ */
+export async function authenticateUser(request: Request): Promise<User> {
+	const authHeader = request.headers.get("Authorization");
+	const token = authHeader?.split(" ")[1] || null;
+
+	if (!token) {
+		throw error(401, "未授权");
+	}
+
+	const jwtSecret = env.JWT_SECRET;
+	if (!jwtSecret) {
+		throw error(500, "未配置 JWT 密钥");
+	}
+
+	try {
+		const decoded = verifyJWT(token, jwtSecret);
+
+		if (!decoded.roles || !decoded.roles.includes("user")) {
 			throw error(403, "无访问权限");
 		}
 
@@ -216,5 +286,13 @@ export async function authenticateSeller(request: Request): Promise<User> {
  */
 export async function requireSeller(event: { request: Request; locals: App.Locals }) {
 	const user = await authenticateSeller(event.request);
+	return user;
+}
+
+/**
+ * 中间件函数，确保用户具有 'user' 角色
+ */
+export async function requireUser(event: { request: Request; locals: App.Locals }) {
+	const user = await authenticateUser(event.request);
 	return user;
 }
