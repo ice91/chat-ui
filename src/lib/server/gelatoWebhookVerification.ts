@@ -11,8 +11,12 @@ export function verifyGelatoWebhookRequest(
 	hmac.update(body, "utf8");
 	const computedSignature = hmac.digest("base64");
 
+	console.log(signature);
+	console.log(webhookSecret);
 	const signatureBuffer = Buffer.from(signature, "base64");
 	const computedSignatureBuffer = Buffer.from(computedSignature, "base64");
+	console.log(signatureBuffer);
+	console.log(computedSignatureBuffer);
 
 	if (signatureBuffer.length !== computedSignatureBuffer.length) {
 		console.warn("签名长度不匹配");
