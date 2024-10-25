@@ -11,17 +11,18 @@ export function verifyGelatoWebhookRequest(
 	hmac.update(body, "utf8");
 	const computedSignature = hmac.digest("base64");
 
-	try {
-		const isValid = crypto.timingSafeEqual(
-			Buffer.from(signature, "base64"),
-			Buffer.from(computedSignature, "base64")
-		);
-		if (!isValid) {
-			console.warn("签名验证失败");
-		}
-		return isValid;
-	} catch (error) {
-		console.warn("签名验证出错", error);
+	const signatureBuffer = Buffer.from(signature, "base64");
+	const computedSignatureBuffer = Buffer.from(computedSignature, "base64");
+
+	if (signatureBuffer.length !== computedSignatureBuffer.length) {
+		console.warn("签名长度不匹配");
 		return false;
 	}
+
+	const isValid = crypto.timingSafeEqual(signatureBuffer, computedSignatureBuffer);
+	if (!isValid) {
+		console.warn("签名验证失败");
+	}
+
+	return isValid;
 }

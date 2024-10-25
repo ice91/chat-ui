@@ -1,6 +1,7 @@
 // src/routes/api/gelato/webhooks/+server.ts
 
 import type { RequestHandler } from "@sveltejs/kit";
+import type { GelatoWebhookEvent } from "$lib/types/WebhookEvents";
 import { handleGelatoWebhookEvent } from "$lib/server/gelatoWebhookHandlers";
 import { verifyGelatoWebhookRequest } from "$lib/server/gelatoWebhookVerification";
 import { env } from "$env/dynamic/private";
@@ -21,7 +22,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const bodyText = await request.text();
 
-		// 验证 Webhook 请求
+		// 验证 webhook 请求
 		const isValid = verifyGelatoWebhookRequest(signature, bodyText, webhookSecret);
 		if (!isValid) {
 			console.warn("Webhook 请求验证失败。");
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// 解析事件数据
-		const event = JSON.parse(bodyText);
+		const event: GelatoWebhookEvent = JSON.parse(bodyText);
 
 		// 处理事件
 		await handleGelatoWebhookEvent(event);
