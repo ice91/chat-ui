@@ -1,30 +1,27 @@
 // src/lib/server/gelatoWebhookVerification.ts
 
 import crypto from "crypto";
-import { env } from "$env/dynamic/private";
 
-export async function verifyGelatoWebhookRequest(request: Request): Promise<boolean> {
-	const signature = request.headers.get("X-Gelato-Signature");
-	if (!signature) {
-		console.warn("缺少 X-Gelato-Signature 標頭");
+export function verifyGelatoWebhookRequest(
+	signature: string,
+	body: string,
+	webhookSecret: string
+): boolean {
+	const hmac = crypto.createHmac("sha1", webhookSecret);
+	hmac.update(body, "utf8");
+	const computedSignature = hmac.digest("base64");
+
+	const signatureBuffer = Buffer.from(signature, "base64");
+	const computedSignatureBuffer = Buffer.from(computedSignature, "base64");
+
+	if (signatureBuffer.length !== computedSignatureBuffer.length) {
+		console.warn("签名长度不匹配");
 		return false;
 	}
 
-	const body = await request.text();
-
-	const webhookSecret = env.GELATO_WEBHOOK_SECRET;
-	if (!webhookSecret) {
-		console.error("未配置 GELATO_WEBHOOK_SECRET");
-		return false;
-	}
-
-	const hmac = crypto.createHmac("sha256", webhookSecret);
-	hmac.update(body, "utf-8");
-	const computedSignature = hmac.digest("hex");
-
-	const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(computedSignature));
+	const isValid = crypto.timingSafeEqual(signatureBuffer, computedSignatureBuffer);
 	if (!isValid) {
-		console.warn("簽名驗證失敗");
+		console.warn("签名验证失败");
 	}
 
 	return isValid;
