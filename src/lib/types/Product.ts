@@ -1,35 +1,31 @@
 // src/lib/types/Product.ts
 
 import type { ObjectId } from "mongodb";
-import type { Timestamps } from "./Order";
+import type { Timestamps } from "./Timestamps";
 
 export interface Product extends Timestamps {
 	_id: ObjectId;
-	userId: ObjectId; // 卖家ID，关联到 User._id
+	userId: ObjectId; // 卖家ID
 	title: string;
 	description: string;
 	images: string[];
-	stock: number;
 	price: number;
-	provider: string; // 供应商名称，如 'Gelato'
-	providerProductId: string; // 供应商平台上的产品ID
-	productType: string;
-	variants: Variant[];
+	provider: string; // 例如：'Gelato'
+	providerProductId?: string; // Gelato 平台上的产品ID
+	shopifyProductId?: string; // Shopify 平台上的产品ID
+	productType: string; // 例如：'t-shirt'、'mug'
+	variants?: Variant[]; // 产品变体
 	tags?: string[];
-	categoryIds?: ObjectId[];
-	previewUrl?: string;
-	status?: string;
-	stockAvailability?: Record<string, string>; // 如 { "EU": "in-stock" }
+	categories?: string[];
+	status: "draft" | "published";
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface Variant {
-	templateVariantId: string;
-	position?: number;
-	imagePlaceholders?: ImagePlaceholder[];
-}
-
-export interface ImagePlaceholder {
-	name: string;
-	fileUrl: string;
-	fitMethod?: string;
+	variantId?: string; // Gelato 或 Shopify 的变体 ID
+	title: string;
+	options: Record<string, string>; // 例如：{ Color: 'Red', Size: 'M' }
+	imageUrl?: string;
+	price?: number;
 }

@@ -1,18 +1,25 @@
-// src/lib/server/gelatoWebhookEventHandlers.ts
+// src/lib/server/gelatoWebhookHandlers.ts
 
-import type {
-	OrderStatusUpdatedEvent,
-	OrderItemStatusUpdatedEvent,
-} from "$lib/types/WebhookEvents";
+import type { GelatoWebhookEvent } from "$lib/types/WebhookEvents";
 import { collections } from "$lib/server/database";
 //import { ObjectId } from 'mongodb';
 
-// 处理 'order_status_updated' 事件
-export async function handleOrderStatusUpdated(event: OrderStatusUpdatedEvent) {
+export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
+	switch (event.event) {
+		case "order_status_updated":
+			await handleOrderStatusUpdated(event);
+			break;
+		// 如果需要，可以添加其他事件类型的处理
+		default:
+			console.warn(`未处理的事件类型：${event.event}`);
+	}
+}
+
+async function handleOrderStatusUpdated(event: GelatoWebhookEvent) {
 	const { orderReferenceId, fulfillmentStatus, items } = event;
 
-	// 查找订单
-	const order = await collections.orders.findOne({ orderReferenceId });
+	// 假设 orderReferenceId 对应于 Shopify 的 shopifyOrderId
+	const order = await collections.orders.findOne({ shopifyOrderId: orderReferenceId });
 
 	if (!order) {
 		console.warn(`未找到对应的订单，reference ID: ${orderReferenceId}`);
@@ -25,44 +32,42 @@ export async function handleOrderStatusUpdated(event: OrderStatusUpdatedEvent) {
 		{ $set: { fulfillmentStatus, updatedAt: new Date() } }
 	);
 
-	// 更新订单项
-	for (const item of items) {
-		const { itemReferenceId, fulfillmentStatus } = item;
+	// 更新订单项的状态和跟踪信息
+	if (items && items.length > 0) {
+		for (const item of items) {
+			const { itemReferenceId, fulfillmentStatus: itemStatus, fulfillments } = item;
 
-		const orderItem = await collections.orderItems.findOne({ orderId: order._id, itemReferenceId });
+			const orderItem = await collections.orders.findOne(
+				{ _id: order._id, "items.gelatoItemId": itemReferenceId },
+				{ projection: { "items.$": 1 } }
+			);
 
-		if (!orderItem) {
-			console.warn(`未找到对应的订单项，itemReferenceId: ${itemReferenceId}`);
-			continue;
+			if (!orderItem || !orderItem.items || orderItem.items.length === 0) {
+				console.warn(`未找到对应的订单项，itemReferenceId: ${itemReferenceId}`);
+				continue;
+			}
+
+			const trackingCodes =
+				fulfillments?.map((f) => ({
+					code: f.trackingCode,
+					url: f.trackingUrl,
+					shipmentMethodName: f.shipmentMethodName,
+					shipmentMethodUid: f.shipmentMethodUid,
+					country: f.fulfillmentCountry,
+					stateProvince: f.fulfillmentStateProvince,
+					facilityId: f.fulfillmentFacilityId,
+				})) || [];
+
+			await collections.orders.updateOne(
+				{ _id: order._id, "items.gelatoItemId": itemReferenceId },
+				{
+					$set: {
+						"items.$.fulfillmentStatus": itemStatus,
+						"items.$.trackingCodes": trackingCodes,
+						"items.$.updatedAt": new Date(),
+					},
+				}
+			);
 		}
-
-		await collections.orderItems.updateOne(
-			{ _id: orderItem._id },
-			{ $set: { fulfillmentStatus, updatedAt: new Date() } }
-		);
 	}
-}
-
-// 处理 'order_item_status_updated' 事件
-export async function handleOrderItemStatusUpdated(event: OrderItemStatusUpdatedEvent) {
-	const { orderReferenceId, itemReferenceId, status } = event;
-
-	const order = await collections.orders.findOne({ orderReferenceId });
-
-	if (!order) {
-		console.warn(`未找到对应的订单，reference ID: ${orderReferenceId}`);
-		return;
-	}
-
-	const orderItem = await collections.orderItems.findOne({ orderId: order._id, itemReferenceId });
-
-	if (!orderItem) {
-		console.warn(`未找到对应的订单项，itemReferenceId: ${itemReferenceId}`);
-		return;
-	}
-
-	await collections.orderItems.updateOne(
-		{ _id: orderItem._id },
-		{ $set: { fulfillmentStatus: status, updatedAt: new Date() } }
-	);
 }

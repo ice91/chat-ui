@@ -6,20 +6,16 @@ import { ObjectId } from "mongodb";
 import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
-import type { Product } from "$lib/types/Product";
-//import { ProviderFactory } from '$lib/providers/ProviderFactory';
 
 export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 	try {
 		const productId = new ObjectId(params.id);
 
-		// 获取 JWT Token
 		const token = cookies.get("jwt");
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
 
-		// 验证 JWT
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
 
@@ -29,7 +25,6 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 
 		const userId = new ObjectId(decoded.userId);
 
-		// 获取请求体
 		const data = await request.json();
 
 		// 获取要更新的产品
@@ -64,13 +59,11 @@ export const DELETE: RequestHandler = async ({ params, cookies }) => {
 	try {
 		const productId = new ObjectId(params.id);
 
-		// 获取 JWT Token
 		const token = cookies.get("jwt");
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
 
-		// 验证 JWT
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
 
@@ -86,9 +79,8 @@ export const DELETE: RequestHandler = async ({ params, cookies }) => {
 			return json({ error: "产品未找到或无权限" }, { status: 404 });
 		}
 
-		// 根据供应商删除产品（需要实现供应商的删除产品方法）
-		//const provider = ProviderFactory.createProvider(existingProduct.provider);
-		// await provider.deleteProduct(existingProduct.providerProductId);
+		// 根据供应商删除产品（可选实现）
+		// 例如，如果使用 Gelato 或 Shopify API 删除产品，可以在此处调用相应的删除方法
 
 		// 删除本地产品记录
 		const result = await collections.products.deleteOne({ _id: productId, userId });

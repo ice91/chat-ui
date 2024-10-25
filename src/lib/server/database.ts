@@ -1,3 +1,5 @@
+// src/lib/server/database
+
 import { env } from "$env/dynamic/private";
 import { GridFSBucket, MongoClient } from "mongodb";
 import type { Conversation } from "$lib/types/Conversation";

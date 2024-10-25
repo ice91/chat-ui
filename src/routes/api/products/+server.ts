@@ -6,18 +6,15 @@ import { ObjectId } from "mongodb";
 import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
-import type { Product } from "$lib/types/Product";
-import { ProviderFactory } from "$lib/providers/ProviderFactory";
+import { createProductOnGelato } from "$lib/server/gelato";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
-		// 获取 JWT Token
 		const token = cookies.get("jwt");
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
 
-		// 验证 JWT
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
 
@@ -27,38 +24,33 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		const userId = new ObjectId(decoded.userId);
 
-		// 获取请求体
 		const data = await request.json();
 
 		// 基本数据验证
-		if (!data.title || !data.price || !data.provider || !data.templateId) {
-			return json({ error: "标题、价格、供应商和模板ID为必填项" }, { status: 400 });
+		if (!data.title || !data.price || !data.templateId) {
+			return json({ error: "标题、价格和模板ID为必填项" }, { status: 400 });
 		}
 
-		// 创建供应商实例
-		const provider = ProviderFactory.createProvider(data.provider);
-
-		// 调用供应商的 createProduct 方法
-		const providerResponse = await provider.createProduct(data);
+		// 在 Gelato 上创建产品
+		const providerResponse = await createProductOnGelato(data);
 
 		// 创建本地产品记录
-		const product: Omit<Product, "_id"> = {
+		const product = {
 			userId,
 			title: data.title,
 			description: data.description || "",
 			images: data.images || [],
 			price: data.price,
-			stock: data.stock || 0,
-			provider: data.provider,
-			providerProductId: providerResponse.id,
+			provider: "Gelato",
+			providerProductId: providerResponse.productUid,
+			shopifyProductId: providerResponse.shopifyProductId, // 假设返回了 Shopify 的产品 ID
 			productType: data.productType || "Unknown",
 			variants: data.variants || [],
 			tags: data.tags || [],
-			categoryIds: data.categoryIds ? data.categoryIds.map((id: string) => new ObjectId(id)) : [],
+			categories: data.categoryIds ? data.categoryIds.map((id: string) => new ObjectId(id)) : [],
+			status: "published",
 			createdAt: new Date(),
 			updatedAt: new Date(),
-			previewUrl: providerResponse.previewUrl,
-			status: providerResponse.status,
 		};
 
 		const result = await collections.products.insertOne(product);

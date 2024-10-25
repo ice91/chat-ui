@@ -1,3 +1,5 @@
+// src/lib/types/Storefront
+
 import type { ObjectId } from "mongodb";
 import type { Timestamps } from "./Timestamps";
 
