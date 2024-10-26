@@ -9,7 +9,7 @@ import { env } from "$env/dynamic/private";
 import jwt from "jsonwebtoken";
 import type { User } from "$lib/types/User"; // 确保已正确导入
 
-export const GET: RequestHandler = async ({ url, locals, cookies }) => {
+export const GET: RequestHandler = async ({ url /*, locals*/ }) => {
 	const params = Object.fromEntries(url.searchParams.entries());
 
 	// 验证回调参数
@@ -19,12 +19,6 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 		iss: z.string().optional(),
 	});
 
-	// 生成 JWT
-	const jwtSecret = env.JWT_SECRET;
-	console.log("JWT_SECRET:", jwtSecret);
-	// 构建前端回调 URL，不再包含 token 参数
-	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback`;
-
 	const result = schema.safeParse(params);
 	if (!result.success) {
 		throw error(400, "Invalid callback parameters");
@@ -32,18 +26,12 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 
 	const { code, state, iss } = result.data;
 
-	console.log(`state: ${state}`);
 	// 验证并解析 CSRF Token（state 参数）
 	const validatedToken = await validateAndParseCsrfToken(state);
 
-	console.log(`validateToken.sessionId: ${validatedToken?.sessionId}`);
-	console.log(`validateToken.redirectUrl: ${validatedToken?.redirectUrl}`);
 	if (!validatedToken) {
 		throw error(403, "Invalid or expired CSRF token");
 	}
-
-	// 将 sessionId 设置到 locals 中
-	locals.sessionId = validatedToken.sessionId;
 
 	// 获取用户数据
 	const { userData } = await getOIDCUserData(
@@ -97,6 +85,7 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 		}
 	}
 
+	const jwtSecret = env.JWT_SECRET;
 	if (!jwtSecret) {
 		throw error(500, "JWT secret not configured");
 	}
@@ -108,30 +97,24 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
-	// 设置 JWT 为 Cookie
-	cookies.set("jwt", jwtToken, {
-		httpOnly: true,
-		secure: true, // 在 HTTPS 下设置为 true
-		sameSite: "none", // 允许跨站点 Cookie
-		path: "/", // Cookie 的有效路径
-		maxAge: 60 * 60 * 2, // 2 小时（以秒为单位）
-	});
+	// 构建前端回调 URL，携带 JWT 令牌
+	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
 
-	// 返回一个 HTML 页面，使用 JavaScript 重定向到前端
+	// 返回一个 HTML 页面，使用 JavaScript 重定向到前端并传递 token
 	const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Authentication Successful</title>
-    </head>
-    <body>
-      <p>Authentication successful, redirecting...</p>
-      <script>
-        window.location.href = '${frontendCallbackUrl}';
-      </script>
-    </body>
-    </html>
-  `;
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Authentication Successful</title>
+        </head>
+        <body>
+          <p>Authentication successful, redirecting...</p>
+          <script>
+            window.location.href = '${frontendCallbackUrl}';
+          </script>
+        </body>
+        </html>
+    `;
 
 	return new Response(html, {
 		status: 200,

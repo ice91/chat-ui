@@ -8,13 +8,17 @@ import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { createProductOnGelato } from "$lib/server/gelato";
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const token = cookies.get("jwt");
-		if (!token) {
+		// 获取 JWT Token from Authorization header
+		const authHeader = request.headers.get("Authorization");
+		if (!authHeader || !authHeader.startsWith("Bearer ")) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
 
+		const token = authHeader.slice(7);
+
+		// 验证 JWT
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
 

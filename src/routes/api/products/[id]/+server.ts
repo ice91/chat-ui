@@ -7,14 +7,17 @@ import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 
-export const PUT: RequestHandler = async ({ params, request, cookies }) => {
+export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
 		const productId = new ObjectId(params.id);
 
-		const token = cookies.get("jwt");
-		if (!token) {
+		// 获取 JWT Token from Authorization header
+		const authHeader = request.headers.get("Authorization");
+		if (!authHeader || !authHeader.startsWith("Bearer ")) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
+
+		const token = authHeader.slice(7);
 
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
@@ -55,14 +58,17 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ params, cookies }) => {
+export const DELETE: RequestHandler = async ({ params, request }) => {
 	try {
 		const productId = new ObjectId(params.id);
 
-		const token = cookies.get("jwt");
-		if (!token) {
+		// 获取 JWT Token from Authorization header
+		const authHeader = request.headers.get("Authorization");
+		if (!authHeader || !authHeader.startsWith("Bearer ")) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
+
+		const token = authHeader.slice(7);
 
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
@@ -78,9 +84,6 @@ export const DELETE: RequestHandler = async ({ params, cookies }) => {
 		if (!existingProduct) {
 			return json({ error: "产品未找到或无权限" }, { status: 404 });
 		}
-
-		// 根据供应商删除产品（可选实现）
-		// 例如，如果使用 Gelato 或 Shopify API 删除产品，可以在此处调用相应的删除方法
 
 		// 删除本地产品记录
 		const result = await collections.products.deleteOne({ _id: productId, userId });
