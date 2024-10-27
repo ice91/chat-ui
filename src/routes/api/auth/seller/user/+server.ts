@@ -14,6 +14,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
 		// 获取 Authorization 头
 		const authHeader = request.headers.get("Authorization");
+		console.log(request);
 		console.log("Authorization header:", authHeader);
 
 		// 从 Authorization 头中获取 JWT

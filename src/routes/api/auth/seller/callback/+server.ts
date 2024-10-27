@@ -100,6 +100,7 @@ export const GET: RequestHandler = async ({ url /*, locals*/ }) => {
 	// 构建前端回调 URL，携带 JWT 令牌
 	const frontendCallbackUrl = `${env.FRONTEND_BASE_URL}/auth/callback?token=${jwtToken}`;
 
+	console.log(frontendCallbackUrl);
 	// 返回一个 HTML 页面，使用 JavaScript 重定向到前端并传递 token
 	const html = `
         <!DOCTYPE html>
