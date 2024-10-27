@@ -25,6 +25,8 @@ export const GET: RequestHandler = async ({ request, cookies }) => {
 
 		const userId = new ObjectId(decoded.userId);
 
+		console.log("query order");
+		console.log(userId);
 		// 获取分页参数
 		const url = new URL(request.url);
 		const page = parseInt(url.searchParams.get("page") || "1");

@@ -10,17 +10,15 @@ import { createProductOnGelato } from "$lib/server/gelato";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
-		// 获取 JWT Token
 		const token = cookies.get("jwt");
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
 
-		// 验证 JWT
 		const jwtSecret = env.JWT_SECRET;
 		const decoded = verifyJWT(token, jwtSecret);
 
-		if (!decoded.roles.includes("user")) {
+		if (!decoded.roles.includes("seller")) {
 			return json({ error: "禁止访问" }, { status: 403 });
 		}
 
@@ -28,6 +26,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		const data = await request.json();
 
+		console.log("create product");
+		console.log(userId);
 		// 基本数据验证
 		if (!data.title || !data.price || !data.templateId) {
 			return json({ error: "标题、价格和模板ID为必填项" }, { status: 400 });
