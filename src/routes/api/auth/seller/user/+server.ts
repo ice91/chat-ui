@@ -7,22 +7,30 @@ import { collections } from "$lib/server/database";
 import { env } from "$env/dynamic/private";
 import { ObjectId } from "mongodb";
 
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ /*request,*/ cookies }) => {
 	try {
 		// 日志：处理程序被调用
 		console.log("Handler for /api/auth/seller/user invoked");
 
-		// 获取 Authorization 头
-		const authHeader = request.headers.get("Authorization");
-		console.log(request);
-		console.log("Authorization header:", authHeader);
+		// 确认 cookies 是否被正确解构
+		if (!cookies) {
+			console.error("Cookies are undefined");
+			return new Response(
+				JSON.stringify({ error: "Internal Server Error: Cookies are undefined" }),
+				{ status: 500 }
+			);
+		}
 
-		// 从 Authorization 头中获取 JWT
-		const token = authHeader?.split(" ")[1];
+		// 获取 Authorization 头
+		//const authHeader = request.headers.get("Authorization");
+		//console.log("Authorization header:", authHeader);
+
+		// 从 Authorization 头或 Cookie 中获取 JWT
+		const token = /*authHeader?.split(" ")[1] ||*/ cookies.get("jwt");
 		console.log("JWT token:", token);
 
 		if (!token) {
-			console.error("No token provided in Authorization header.");
+			console.error("No token provided in Authorization header or cookies.");
 			return new Response(JSON.stringify({ error: "未授权" }), { status: 401 });
 		}
 
