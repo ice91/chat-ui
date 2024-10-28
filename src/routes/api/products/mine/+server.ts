@@ -10,7 +10,7 @@ import { ObjectId } from "mongodb";
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// 获取 JWT 令牌
-		const token = cookies.get("jwt");
+		const token = cookies.get(env.COOKIE_NAME);
 		if (!token) {
 			return new Response(JSON.stringify({ error: "未授权" }), { status: 401 });
 		}

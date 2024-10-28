@@ -10,7 +10,7 @@ import { collections } from "$lib/server/database";
 export const GET: RequestHandler = async ({ request, cookies }) => {
 	try {
 		// 获取 JWT Token
-		const token = cookies.get("jwt");
+		const token = cookies.get(env.COOKIE_NAME);
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
