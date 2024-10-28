@@ -109,7 +109,7 @@ export const GET: RequestHandler = async ({ url, locals, cookies }) => {
 	const jwtToken = jwt.sign(tokenPayload, jwtSecret, { expiresIn: "2h" });
 
 	// 设置 JWT 为 Cookie
-	cookies.set("jwt", jwtToken, {
+	cookies.set(env.COOKIE_NAME, jwtToken, {
 		httpOnly: true,
 		secure: true, // 在 HTTPS 下设置为 true
 		sameSite: "none", // 允许跨站点 Cookie
