@@ -63,10 +63,24 @@ export const handleError: HandleServerError = async ({ error, event, status, mes
 		status,
 	});
 
-	return {
-		message: "An error occurred",
-		errorId,
+	// 创建错误响应，并添加 CORS 头
+	const origin = event.request.headers.get("origin");
+	const allowedOrigins = env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(",") : [];
+	const isAllowedOrigin = origin && allowedOrigins.includes(origin);
+
+	const responseHeaders: HeadersInit = {
+		"Content-Type": "application/json",
 	};
+
+	if (isAllowedOrigin) {
+		responseHeaders["Access-Control-Allow-Origin"] = origin;
+		responseHeaders["Access-Control-Allow-Credentials"] = "true";
+	}
+
+	return new Response(JSON.stringify({ message: "An error occurred", errorId }), {
+		status: 500,
+		headers: responseHeaders,
+	});
 };
 
 // Main handle function with CORS configuration and path exclusions
@@ -118,15 +132,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// ======== Step 3: Error Response Utility Function ========
 
-	function errorResponse(status: number, message: string) {
+	function errorResponse(status: number, message: string): Response {
 		const sendJson =
 			event.request.headers.get("accept")?.includes("application/json") ||
 			event.request.headers.get("content-type")?.includes("application/json");
+
+		const headers: HeadersInit = {
+			"Content-Type": sendJson ? "application/json" : "text/plain",
+		};
+
+		// 添加 CORS 头
+		if (isAllowedOrigin) {
+			headers["Access-Control-Allow-Origin"] = origin;
+			headers["Access-Control-Allow-Credentials"] = "true";
+		}
+
 		return new Response(sendJson ? JSON.stringify({ error: message }) : message, {
 			status,
-			headers: {
-				"content-type": sendJson ? "application/json" : "text/plain",
-			},
+			headers,
 		});
 	}
 
@@ -332,26 +355,48 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	let replaced = false;
 
-	const finalResponse = await resolve(event, {
-		transformPageChunk: (chunk) => {
-			// For some reason, Sveltekit doesn't let us load env variables from .env in the app.html template
-			if (replaced || !chunk.html.includes("%gaId%")) {
-				return chunk.html;
-			}
-			replaced = true;
+	let finalResponse: Response;
+	try {
+		finalResponse = await resolve(event, {
+			transformPageChunk: (chunk) => {
+				// For some reason, Sveltekit doesn't let us load env variables from .env in the app.html template
+				if (replaced || !chunk.html.includes("%gaId%")) {
+					return chunk.html;
+				}
+				replaced = true;
 
-			return chunk.html.replace("%gaId%", envPublic.PUBLIC_GOOGLE_ANALYTICS_ID);
-		},
-	});
+				return chunk.html.replace("%gaId%", envPublic.PUBLIC_GOOGLE_ANALYTICS_ID);
+			},
+		});
+	} catch (error) {
+		logger.error({
+			locals: event.locals,
+			url: event.request.url,
+			params: event.params,
+			request: event.request,
+			error,
+		});
+		finalResponse = errorResponse(500, "Internal Server Error");
+	}
 
 	// ======== Step 9: Add CORS Headers to the Response ========
 
-	if (isAllowedOrigin) {
-		finalResponse.headers.set("Access-Control-Allow-Origin", origin);
-		finalResponse.headers.set("Access-Control-Allow-Credentials", "true");
-	}
+	finalResponse = addCorsHeaders(finalResponse, isAllowedOrigin, origin);
 
 	// ======== Step 10: Return the Final Response ========
 
 	return finalResponse;
 };
+
+// 封装一个函数来添加 CORS 头
+function addCorsHeaders(
+	response: Response,
+	isAllowedOrigin: boolean,
+	origin: string | null
+): Response {
+	if (isAllowedOrigin && origin) {
+		response.headers.set("Access-Control-Allow-Origin", origin);
+		response.headers.set("Access-Control-Allow-Credentials", "true");
+	}
+	return response;
+}
