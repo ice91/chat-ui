@@ -288,7 +288,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	if (event.request.method === "POST") {
 		// Define paths to exclude from automatic session refresh (e.g., /logout)
-		const excludedPaths = [`${base}/logout`];
+		const excludedPaths = [
+			`${base}/logout`,
+			`${base}/api/auth/seller/logout`, // 确保登出路由被排除
+		];
 
 		if (!excludedPaths.includes(event.url.pathname)) {
 			refreshSessionCookie(event.cookies, secretSessionId);
@@ -323,6 +326,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		!event.url.pathname.startsWith(`${base}/login`) &&
 		!event.url.pathname.startsWith(`${base}/admin`) &&
 		!event.url.pathname.startsWith(`${base}/api/gelato/webhooks`) && // 排除 webhook 路径
+		!event.url.pathname.startsWith(`${base}/api/auth/seller/logout`) && // 排除登出路由
 		!["GET", "OPTIONS", "HEAD"].includes(event.request.method)
 	) {
 		if (
