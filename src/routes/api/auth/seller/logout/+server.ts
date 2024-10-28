@@ -6,6 +6,7 @@ import { env } from "$env/dynamic/private";
 export const POST: RequestHandler = async ({ cookies }) => {
 	try {
 		// 删除 JWT 令牌
+		console.log("env.COOKIE_NAME:", env.COOKIE_NAME);
 		cookies.delete(env.COOKIE_NAME, { path: "/" });
 		return new Response(JSON.stringify({ message: "退出登录成功" }), { status: 200 });
 	} catch (err) {

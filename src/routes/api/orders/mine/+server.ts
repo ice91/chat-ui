@@ -11,6 +11,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// 获取 JWT 令牌
 		const token = cookies.get(env.COOKIE_NAME);
+		console.log("env.COOKIE_NAME:", env.COOKIE_NAME);
+		console.log("JWT token:", token);
 		if (!token) {
 			return new Response(JSON.stringify({ error: "未授权" }), { status: 401 });
 		}

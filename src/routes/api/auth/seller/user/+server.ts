@@ -27,6 +27,7 @@ export const GET: RequestHandler = async ({ /*request,*/ cookies }) => {
 
 		// 从 Authorization 头或 Cookie 中获取 JWT
 		const token = /*authHeader?.split(" ")[1] ||*/ cookies.get(env.COOKIE_NAME);
+		console.log("env.COOKIE_NAME:", env.COOKIE_NAME);
 		console.log("JWT token:", token);
 
 		if (!token) {

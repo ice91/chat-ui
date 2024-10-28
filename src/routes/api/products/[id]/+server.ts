@@ -12,6 +12,8 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		const productId = new ObjectId(params.id);
 
 		const token = cookies.get(env.COOKIE_NAME);
+		console.log("env.COOKIE_NAME:", env.COOKIE_NAME);
+		console.log("JWT token:", token);
 		if (!token) {
 			return json({ error: "未授权" }, { status: 401 });
 		}
