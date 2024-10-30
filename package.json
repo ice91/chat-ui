@@ -64,6 +64,7 @@
 		"@cliqz/adblocker-playwright": "^1.27.2",
 		"@fortawesome/free-solid-svg-icons": "^6.6.0",
 		"@fortawesome/svelte-fontawesome": "^0.2.2",
+		"@google-cloud/storage": "^7.13.0",
 		"@gradio/client": "^1.1.1",
 		"@huggingface/hub": "^0.5.1",
 		"@huggingface/inference": "^2.7.0",
