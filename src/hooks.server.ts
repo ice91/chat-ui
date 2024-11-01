@@ -326,6 +326,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		!event.url.pathname.startsWith(`${base}/login`) &&
 		!event.url.pathname.startsWith(`${base}/admin`) &&
 		!event.url.pathname.startsWith(`${base}/api/gelato/webhooks`) && // 排除 webhook 路径
+		!event.url.pathname.startsWith(`${base}/api/product`) && // 排除 product 路径
 		!event.url.pathname.startsWith(`${base}/api/auth/seller/logout`) && // 排除登出路由
 		!["GET", "OPTIONS", "HEAD"].includes(event.request.method)
 	) {
