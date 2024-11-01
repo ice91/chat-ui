@@ -28,7 +28,7 @@ export async function createProductOnGelato(
 				templateId: data.templateId,
 				title: data.title,
 				description: data.description,
-				isVisibleInTheOnlineStore: data.isVisibleInTheOnlineStore || false,
+				isVisibleInTheOnlineStore: data.isVisibleInTheOnlineStore || true,
 				salesChannels: data.salesChannels || ["web"],
 				tags: data.tags || [],
 				variants: data.variants,

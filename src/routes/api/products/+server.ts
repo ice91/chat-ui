@@ -73,6 +73,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			categoryIds,
 		});
 
+		console.log("providerResponse", providerResponse);
 		// 創建本地產品記錄
 		const product = {
 			userId: new ObjectId(sellerId),
@@ -82,7 +83,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			price,
 			provider: "Gelato",
 			providerProductId: providerResponse.productUid,
-			shopifyProductId: providerResponse.shopifyProductId, // 假設返回了 Shopify 的產品 ID
+			shopifyProductId: providerResponse.externalId, // 假設返回了 Shopify 的產品 ID
 			productType: formData.get("productType") || "Unknown",
 			variants: formData.get("variants") ? JSON.parse(formData.get("variants") as string) : [],
 			tags,
