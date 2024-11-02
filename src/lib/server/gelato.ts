@@ -34,6 +34,9 @@ export async function createProductOnGelato(
 				variants: data.variants,
 				productType: data.productType || "Printable Material",
 				vendor: data.vendor || "Gelato",
+				metadata: {
+					gelatoCreateTaskId: taskId, // 傳遞任務 ID 作為元數據
+				},
 			}
 		);
 

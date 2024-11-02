@@ -9,7 +9,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const signature = request.headers.get("X-Gelato-Signature");
 		if (!signature) {
-			console.warn("缺少 X-Gelato-Signature 标头");
+			console.warn("缺少 X-Gelato-Signature 標頭");
 			return new Response("Unauthorized", { status: 401 });
 		}
 
@@ -19,26 +19,26 @@ export const POST: RequestHandler = async ({ request }) => {
 			return new Response("Internal Server Error", { status: 500 });
 		}
 
-		// 读取请求体
+		// 讀取請求體
 		const bodyText = await request.text();
 
-		// 直接比较签名
+		// 驗證 Webhook 請求
 		const isValid = verifyGelatoWebhookRequest(signature, bodyText, webhookSecret);
 		if (!isValid) {
-			console.warn("Webhook 请求验证失败。");
+			console.warn("Webhook 請求驗證失敗。");
 			return new Response("Unauthorized", { status: 401 });
 		}
 
-		// 解析事件数据
+		// 解析事件數據
 		const event = JSON.parse(bodyText);
 
-		// 处理事件
+		// 處理事件
 		await handleGelatoWebhookEvent(event);
 
-		// 成功处理后返回 200 OK
+		// 成功處理後返回 200 OK
 		return new Response(null, { status: 200 });
 	} catch (error) {
-		console.error("处理 Gelato Webhook 时出错：", error);
+		console.error("處理 Gelato Webhook 時出錯：", error);
 		return new Response("Internal Server Error", { status: 500 });
 	}
 };

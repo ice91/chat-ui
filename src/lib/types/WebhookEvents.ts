@@ -25,3 +25,10 @@ export interface GelatoFulfillment {
 	fulfillmentStateProvince: string;
 	fulfillmentFacilityId: string;
 }
+
+export interface StoreProductUpdatedEvent {
+	storeProductId: string;
+	externalId: string;
+	title: string;
+	// 其他字段根据实际情况添加
+}

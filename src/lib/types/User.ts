@@ -1,3 +1,5 @@
+//src/lib/types/User.ts
+
 import type { ObjectId } from "mongodb";
 import type { Timestamps } from "./Timestamps";
 

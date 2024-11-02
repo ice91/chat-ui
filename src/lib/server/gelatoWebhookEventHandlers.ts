@@ -1,73 +1,55 @@
 // src/lib/server/gelatoWebhookHandlers.ts
 
-import type { GelatoWebhookEvent } from "$lib/types/WebhookEvents";
 import { collections } from "$lib/server/database";
-//import { ObjectId } from 'mongodb';
+//import type { Product } from "$lib/types/Product";
+import type { GelatoWebhookEvent, StoreProductUpdatedEvent } from "$lib/types/WebhookEvents";
 
+/**
+ * 處理 Gelato 的 Webhook 事件
+ * @param event Webhook 事件數據
+ */
 export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
-	switch (event.event) {
-		case "order_status_updated":
-			await handleOrderStatusUpdated(event);
-			break;
-		// 如果需要，可以添加其他事件类型的处理
-		default:
-			console.warn(`未处理的事件类型：${event.event}`);
+	const eventType = event.event;
+
+	if (eventType === "store_product_updated") {
+		await handleStoreProductUpdated(event);
+	} else {
+		console.log(`忽略未處理的事件類型：${eventType}`);
 	}
 }
 
-async function handleOrderStatusUpdated(event: GelatoWebhookEvent) {
-	const { orderReferenceId, fulfillmentStatus, items } = event;
+/**
+ * 處理 store_product_updated 事件
+ * @param event store_product_updated 事件數據
+ */
+async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
+	const storeProductId = event.storeProductId; // Gelato 的產品 ID
+	const externalId = event.externalId; // Shopify 的產品 ID
+	//const title = event.title;
 
-	// 假设 orderReferenceId 对应于 Shopify 的 shopifyOrderId
-	const order = await collections.orders.findOne({ shopifyOrderId: orderReferenceId });
+	// 根據 storeProductId 找到對應的產品記錄
+	const product = await collections.products.findOne({
+		providerProductId: storeProductId,
+		status: "pending",
+	});
 
-	if (!order) {
-		console.warn(`未找到对应的订单，reference ID: ${orderReferenceId}`);
+	if (!product) {
+		console.error("未找到對應的產品記錄");
 		return;
 	}
 
-	// 更新订单状态
-	await collections.orders.updateOne(
-		{ _id: order._id },
-		{ $set: { fulfillmentStatus, updatedAt: new Date() } }
+	// 更新產品記錄
+	await collections.products.updateOne(
+		{ _id: product._id },
+		{
+			$set: {
+				providerProductId: storeProductId,
+				shopifyProductId: externalId,
+				status: "active", // 更新狀態為 active
+				updatedAt: new Date(),
+			},
+		}
 	);
 
-	// 更新订单项的状态和跟踪信息
-	if (items && items.length > 0) {
-		for (const item of items) {
-			const { itemReferenceId, fulfillmentStatus: itemStatus, fulfillments } = item;
-
-			const orderItem = await collections.orders.findOne(
-				{ _id: order._id, "items.gelatoItemId": itemReferenceId },
-				{ projection: { "items.$": 1 } }
-			);
-
-			if (!orderItem || !orderItem.items || orderItem.items.length === 0) {
-				console.warn(`未找到对应的订单项，itemReferenceId: ${itemReferenceId}`);
-				continue;
-			}
-
-			const trackingCodes =
-				fulfillments?.map((f) => ({
-					code: f.trackingCode,
-					url: f.trackingUrl,
-					shipmentMethodName: f.shipmentMethodName,
-					shipmentMethodUid: f.shipmentMethodUid,
-					country: f.fulfillmentCountry,
-					stateProvince: f.fulfillmentStateProvince,
-					facilityId: f.fulfillmentFacilityId,
-				})) || [];
-
-			await collections.orders.updateOne(
-				{ _id: order._id, "items.gelatoItemId": itemReferenceId },
-				{
-					$set: {
-						"items.$.fulfillmentStatus": itemStatus,
-						"items.$.trackingCodes": trackingCodes,
-						"items.$.updatedAt": new Date(),
-					},
-				}
-			);
-		}
-	}
+	console.log(`產品記錄已更新：${product._id}`);
 }
