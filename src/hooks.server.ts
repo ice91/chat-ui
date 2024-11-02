@@ -387,6 +387,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// ======== Step 9: Add CORS Headers to the Response ========
 
+	console.log("ALLOWED_ORIGINS:", env.ALLOWED_ORIGINS);
+	console.log("Origin Header:", origin);
+	console.log("Allowed Origins Array:", allowedOrigins);
+	console.log("Is Allowed Origin:", isAllowedOrigin);
+
 	finalResponse = addCorsHeaders(finalResponse, isAllowedOrigin, origin);
 
 	// ======== Step 10: Return the Final Response ========
