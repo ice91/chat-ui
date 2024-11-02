@@ -311,6 +311,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			const validOrigins = [
 				new URL(event.request.url).host,
+				...(env.FRONTEND_BASE_URL ? [new URL(env.FRONTEND_BASE_URL).host] : []),
 				...(envPublic.PUBLIC_ORIGIN ? [new URL(envPublic.PUBLIC_ORIGIN).host] : []),
 			];
 
