@@ -2,7 +2,11 @@
 
 import axios from "axios";
 import { env } from "$env/dynamic/private";
-import type { CreateProductData, CreateProductResponse } from "../providers/ProviderInterface";
+import type {
+	CreateProductData,
+	CreateProductResponse,
+	GetProductResponse,
+} from "../providers/ProviderInterface";
 
 const GELATO_API_BASE_URL = "https://ecommerce.gelatoapis.com/v1";
 const GELATO_API_KEY = env.GELATO_API_KEY;
@@ -43,5 +47,18 @@ export async function createProductOnGelato(
 	} catch (error) {
 		console.error("在 Gelato 創建產品時出錯：", error.response?.data || error.message);
 		throw new Error("無法在 Gelato 上創建產品");
+	}
+}
+
+// 獲取產品的函數
+export async function getProductFromGelato(storeProductId: string): Promise<GetProductResponse> {
+	try {
+		const response = await gelatoClient.get(
+			`/stores/${GELATO_STORE_ID}/products/${storeProductId}`
+		);
+		return response.data as GetProductResponse;
+	} catch (error) {
+		console.error("在 Gelato 獲取產品時出錯：", error.response?.data || error.message);
+		throw new Error("無法在 Gelato 上獲取產品");
 	}
 }

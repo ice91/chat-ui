@@ -9,7 +9,7 @@ export interface GelatoWebhookEvent {
 export interface StoreProductCreatedEvent extends GelatoWebhookEvent {
 	storeProductId: string; // Gelato 的產品 ID
 	storeId: string;
-	externalId: string; // Shopify 的產品 ID
+	externalId: string | null; // Shopify 的產品 ID，可能為 null
 	title: string;
 	description: string;
 	previewUrl: string;
@@ -17,19 +17,10 @@ export interface StoreProductCreatedEvent extends GelatoWebhookEvent {
 	externalThumbnailUrl: string;
 	publishingErrorCode: string | null;
 	status: string;
-	publishedAt: string;
+	publishedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
-	variants: Array<{
-		id: string;
-		title: string;
-		externalId: string;
-		connectionStatus: string;
-	}>;
-	productVariantOptions: Array<{
-		name: string;
-		values: string[];
-	}>;
+	// 根據實際情況添加其他字段
 }
 
 export interface StoreProductUpdatedEvent extends GelatoWebhookEvent {

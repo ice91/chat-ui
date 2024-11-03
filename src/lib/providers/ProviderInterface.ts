@@ -40,6 +40,34 @@ export interface CreateProductResponse {
 	updatedAt: string;
 }
 
+export interface GetProductResponse {
+	id: string;
+	storeId: string;
+	externalId: string | null;
+	title: string;
+	description: string;
+	previewUrl: string;
+	externalPreviewUrl: string;
+	externalThumbnailUrl: string;
+	publishingErrorCode: string | null;
+	status: string;
+	publishedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+	variants: Array<{
+		id: string;
+		productId: string;
+		title: string;
+		externalId: string | null;
+		connectionStatus: string;
+		productUid: string;
+	}>;
+	productVariantOptions: Array<{
+		name: string;
+		values: string[];
+	}>;
+}
+
 export interface ProviderInterface {
 	createProduct(data: CreateProductData): Promise<CreateProductResponse>;
 	// 可根据需求添加更多方法，例如更新产品、删除产品等
