@@ -6,6 +6,7 @@ import type {
 	StoreProductCreatedEvent,
 	StoreProductUpdatedEvent,
 } from "$lib/types/WebhookEvents";
+//import { eventNames } from "process";
 
 export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
 	const eventType = event.event;
@@ -46,7 +47,8 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 			},
 		}
 	);
-
+	console.log("event:", event);
+	console.log(`externalID：${externalId}`);
 	console.log(`產品記錄已更新：${product._id}`);
 }
 
