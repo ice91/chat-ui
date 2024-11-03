@@ -40,6 +40,7 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 	if (!externalId) {
 		try {
 			const productData = await getProductFromGelato(storeProductId);
+			console.log("productData:", productData);
 			externalId = productData.externalId;
 		} catch (error) {
 			console.error("在獲取產品詳細信息時出錯：", error);
@@ -65,7 +66,7 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 
 	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
 
-	console.log(`產品記錄已更新：${product._id}`);
+	console.log(`(StoreProductCreated)產品記錄已更新：${product._id}`);
 }
 
 async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
@@ -95,5 +96,5 @@ async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 		}
 	);
 
-	console.log(`產品記錄已更新：${product._id}`);
+	console.log(`(StoreProductUpdatedl)產品記錄已更新：${product._id}`);
 }
