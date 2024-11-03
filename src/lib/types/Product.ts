@@ -20,7 +20,7 @@ export interface Product extends Timestamps {
 	status: "pending" | "active" | "failed"; // 新增狀態字段
 	createdAt: Date;
 	updatedAt: Date;
-	gelatoCreateTaskId?: string; // 新增，用於關聯 Webhook 回調
+	// gelatoCreateTaskId?: string; // 如果不需要，可以移除
 }
 
 export interface Variant {

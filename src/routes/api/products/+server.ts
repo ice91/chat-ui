@@ -8,7 +8,7 @@ import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { createProductOnGelato } from "$lib/server/gelato";
 import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 使用默認導入
-import { v4 as uuidv4 } from "uuid"; // 用於生成唯一的任務 ID
+//import { v4 as uuidv4 } from "uuid"; // 用於生成唯一的任務 ID
 
 /**
  * 處理產品創建的 POST 請求
@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from "uuid"; // 用於生成唯一的任務 ID
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		const token = cookies.get(env.COOKIE_NAME);
-		console.log("create product token:", token);
+		console.log("創建產品時獲取的 token:", token);
 		if (!token) {
 			return json({ error: "未授權" }, { status: 401 });
 		}
@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		console.log("templateId:", templateId);
 		// 驗證必填字段
 		if (!title || !price || !templateId) {
-			return json({ error: "標題、價格和模板ID為必填項" }, { status: 400 });
+			return json({ error: "標題、價格和模板 ID 為必填項" }, { status: 400 });
 		}
 
 		// 處理圖片上傳
@@ -63,26 +63,20 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 		console.log("imageUrls:", imageUrls);
 
-		// 生成一個唯一的任務 ID
-		const gelatoCreateTaskId = uuidv4();
-
 		// 在 Gelato 上創建產品
-		const providerResponse = await createProductOnGelato(
-			{
-				templateId,
-				title,
-				description,
-				isVisibleInTheOnlineStore: true,
-				salesChannels: ["web"],
-				tags,
-				variants: [], // 根據需要填充
-				productType: (formData.get("productType") as string) || "Unknown",
-				vendor: "YourVendorName", // 可根據需要修改
-			},
-			gelatoCreateTaskId
-		);
+		const providerResponse = await createProductOnGelato({
+			templateId,
+			title,
+			description,
+			isVisibleInTheOnlineStore: true,
+			salesChannels: ["web"],
+			tags,
+			variants: [], // 根據需要填充
+			productType: (formData.get("productType") as string) || "Unknown",
+			vendor: "YourVendorName", // 可根據需要修改
+		});
 
-		console.log("providerResponse", providerResponse);
+		console.log("providerResponse:", providerResponse);
 		// 創建本地產品記錄
 		const product = {
 			userId: new ObjectId(sellerId),
@@ -99,11 +93,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			status: "pending", // 初始狀態為 pending
 			createdAt: new Date(),
 			updatedAt: new Date(),
-			gelatoCreateTaskId, // 保存任務 ID
+			// gelatoCreateTaskId: gelatoCreateTaskId, // 如果不需要，可以移除
 			expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 例如：30天後自動刪除
+			providerProductId: providerResponse.id, // 根據 Gelato API 響應設置 storeProductId
 		};
 
-		//const result = await collections.products.insertOne(product);
+		// 保存產品到資料庫
 		await collections.products.insertOne(product);
 
 		return json({ message: "產品創建請求已提交，正在處理中" }, { status: 202 });

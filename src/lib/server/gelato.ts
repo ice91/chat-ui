@@ -8,7 +8,7 @@ const GELATO_API_BASE_URL = "https://ecommerce.gelatoapis.com/v1";
 const GELATO_API_KEY = env.GELATO_API_KEY;
 const GELATO_STORE_ID = env.GELATO_STORE_ID;
 
-// 创建 Gelato API 客户端
+// 創建 Gelato API 客戶端
 const gelatoClient = axios.create({
 	baseURL: GELATO_API_BASE_URL,
 	headers: {
@@ -17,7 +17,7 @@ const gelatoClient = axios.create({
 	},
 });
 
-// 创建产品的函数
+// 創建產品的函數
 export async function createProductOnGelato(
 	data: CreateProductData
 ): Promise<CreateProductResponse> {
@@ -34,16 +34,14 @@ export async function createProductOnGelato(
 				variants: data.variants,
 				productType: data.productType || "Printable Material",
 				vendor: data.vendor || "Gelato",
-				metadata: {
-					gelatoCreateTaskId: taskId, // 傳遞任務 ID 作為元數據
-				},
+				// 移除 metadata 字段
 			}
 		);
 
-		// 返回完整的响应数据
+		// 返回完整的響應數據
 		return response.data as CreateProductResponse;
 	} catch (error) {
-		console.error("在 Gelato 创建产品时出错：", error.response?.data || error.message);
-		throw new Error("无法在 Gelato 上创建产品");
+		console.error("在 Gelato 創建產品時出錯：", error.response?.data || error.message);
+		throw new Error("無法在 Gelato 上創建產品");
 	}
 }
