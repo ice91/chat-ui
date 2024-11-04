@@ -7,8 +7,8 @@ import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { createProductOnGelato } from "$lib/server/gelato";
-import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 使用默認導入
-//import { v4 as uuidv4 } from "uuid"; // 用於生成唯一的任務 ID
+import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 引入上傳函數
+import type { Product } from "$lib/types/Product"; // 確保引入 Product 型別
 
 /**
  * 處理產品創建的 POST 請求
@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		console.log("templateId:", templateId);
 		// 驗證必填字段
-		if (!title || !price || !templateId) {
+		if (!title || isNaN(price) || !templateId) {
 			return json({ error: "標題、價格和模板 ID 為必填項" }, { status: 400 });
 		}
 
@@ -78,24 +78,23 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		console.log("providerResponse:", providerResponse);
 		// 創建本地產品記錄
-		const product = {
+		const product: Product = {
+			_id: new ObjectId(),
 			userId: new ObjectId(sellerId),
 			title,
 			description: description || "",
 			images: imageUrls,
 			price,
 			provider: "Gelato",
-			// providerProductId 和 shopifyProductId 暫時未知
-			productType: formData.get("productType") || "Unknown",
+			productType: (formData.get("productType") as string) || "Unknown",
 			variants: formData.get("variants") ? JSON.parse(formData.get("variants") as string) : [],
 			tags,
 			categories: categoryIds ? categoryIds.map((id: string) => new ObjectId(id)) : [],
 			status: "pending", // 初始狀態為 pending
 			createdAt: new Date(),
 			updatedAt: new Date(),
-			// gelatoCreateTaskId: gelatoCreateTaskId, // 如果不需要，可以移除
-			expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 例如：30天後自動刪除
 			providerProductId: providerResponse.id, // 根據 Gelato API 響應設置 storeProductId
+			expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 例如：30天後自動刪除
 		};
 
 		// 保存產品到資料庫
@@ -104,6 +103,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return json({ message: "產品創建請求已提交，正在處理中" }, { status: 202 });
 	} catch (error) {
 		console.error("創建產品時出錯：", error);
-		return json({ error: "內部伺服器錯誤" }, { status: 500 });
+		return json({ error: error.message || "內部伺服器錯誤" }, { status: error.status || 500 });
 	}
 };

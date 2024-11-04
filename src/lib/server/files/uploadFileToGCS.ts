@@ -25,13 +25,13 @@ async function uploadFileToGCS(file: File, sellerId: string): Promise<string> {
 	const bucket = storage.bucket(bucketName);
 	const fileHandle = bucket.file(fileName);
 
-	// 上傳文件到 GCS，並設置為公開訪問
+	// 上傳文件到 GCS，不設置 ACL
 	await fileHandle.save(Buffer.from(buffer), {
 		metadata: {
 			contentType: file.type, // 設置 MIME 類型
 			metadata: { sellerId }, // 保存賣家ID為 metadata
 		},
-		public: true, // 設置文件為公開訪問
+		// 移除 public: true
 	});
 
 	// 獲取文件的公共 URL

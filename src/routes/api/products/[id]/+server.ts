@@ -65,6 +65,11 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 			? JSON.parse(formData.get("existingImages") as string)
 			: [];
 
+		// 驗證必填字段
+		if (!title || isNaN(price) || !description) {
+			return json({ error: "標題、價格和描述為必填項" }, { status: 400 });
+		}
+
 		// 處理圖片上傳
 		const files: File[] = [];
 		formData.forEach((value, key) => {
@@ -135,7 +140,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		return json({ message: "產品更新成功" }, { status: 200 });
 	} catch (error) {
 		console.error("更新產品時出錯：", error);
-		return json({ error: "內部伺服器錯誤" }, { status: 500 });
+		return json({ error: error.message || "內部伺服器錯誤" }, { status: error.status || 500 });
 	}
 };
 
@@ -183,6 +188,6 @@ export const DELETE: RequestHandler = async ({ params, cookies }) => {
 		return json({ message: "產品刪除成功" }, { status: 200 });
 	} catch (error) {
 		console.error("刪除產品時出錯：", error);
-		return json({ error: "內部伺服器錯誤" }, { status: 500 });
+		return json({ error: error.message || "內部伺服器錯誤" }, { status: error.status || 500 });
 	}
 };
