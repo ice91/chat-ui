@@ -7,7 +7,7 @@ import { env } from "$env/dynamic/private"; // 使用 SvelteKit 的 env 模組
 
 // 初始化 GCS 客戶端
 const storage = new Storage({
-  keyFilename: env.GCS_KEYFILE_PATH, // 從 .env 中讀取服務帳戶憑證路徑
+	keyFilename: env.GCS_KEYFILE_PATH, // 從 .env 中讀取服務帳戶憑證路徑
 });
 const bucketName = env.GCS_BUCKET_NAME; // 從 .env 中讀取 bucket 名稱
 
@@ -18,25 +18,26 @@ const bucketName = env.GCS_BUCKET_NAME; // 從 .env 中讀取 bucket 名稱
  * @returns 文件的公共 URL
  */
 async function uploadFileToGCS(file: File, sellerId: string): Promise<string> {
-    const sha = await sha256(await file.text());
-    const buffer = await file.arrayBuffer();
-    const fileName = `${sellerId}/${new ObjectId().toString()}-${sha}`; // 基於賣家ID和唯一ID構建文件名
+	const sha = await sha256(await file.text());
+	const buffer = await file.arrayBuffer();
+	const fileName = `${sellerId}/${new ObjectId().toString()}-${sha}`; // 基於賣家ID和唯一ID構建文件名
 
-    const bucket = storage.bucket(bucketName);
-    const fileHandle = bucket.file(fileName);
+	const bucket = storage.bucket(bucketName);
+	const fileHandle = bucket.file(fileName);
 
-    // 上傳文件到 GCS
-    await fileHandle.save(Buffer.from(buffer), {
-        metadata: {
-            contentType: file.type, // 設置 MIME 類型
-            metadata: { sellerId: sellerId }, // 保存賣家ID為 metadata
-        },
-    });
+	// 上傳文件到 GCS，並設置為公開訪問
+	await fileHandle.save(Buffer.from(buffer), {
+		metadata: {
+			contentType: file.type, // 設置 MIME 類型
+			metadata: { sellerId }, // 保存賣家ID為 metadata
+		},
+		public: true, // 設置文件為公開訪問
+	});
 
-    // 獲取文件的公共 URL
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+	// 獲取文件的公共 URL
+	const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
 
-    return publicUrl;
+	return publicUrl;
 }
 
 export default uploadFileToGCS;
