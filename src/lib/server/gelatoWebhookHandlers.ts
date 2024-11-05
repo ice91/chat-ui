@@ -21,11 +21,10 @@ export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
 }
 
 async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
-	const storeProductId = event.storeProductId; // Gelato 的產品 ID
-	let externalId = event.externalId; // Shopify 的產品 ID
-	const previewUrl = event.previewUrl; // 產品預覽圖 URL
+	const storeProductId = event.storeProductId;
+	let externalId = event.externalId;
+	let previewUrl = event.previewUrl;
 
-	// 根據 providerProductId 查找本地產品記錄
 	const product = await collections.products.findOne({
 		providerProductId: storeProductId,
 		status: "pending",
@@ -36,32 +35,29 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 		return;
 	}
 
-	// 如果 externalId 為 null，調用 Gelato API 獲取最新的產品信息
 	if (!externalId) {
 		try {
 			const productData = await getProductFromGelato(storeProductId);
-			console.log("productData:", productData);
 			externalId = productData.externalId;
+			previewUrl = productData.previewUrl;
 		} catch (error) {
 			console.error("在獲取產品詳細信息時出錯：", error);
-			// 可以選擇在此處重試或等待下一次 webhook 事件
 		}
 	}
 
-	// 更新產品記錄，並使用具體的類型替代 any
 	const updateData: Record<string, unknown> = {
 		updatedAt: new Date(),
 	};
 
 	if (externalId) {
 		updateData.shopifyProductId = externalId;
-		updateData.status = "active"; // 更新狀態為 active
+		updateData.status = "active";
 	} else {
-		updateData.status = "creating"; // 狀態為 creating，等待 externalId 可用
+		updateData.status = "creating";
 	}
 
 	if (previewUrl) {
-		updateData.images = [previewUrl]; // 更新產品圖片
+		updateData.images = [previewUrl];
 	}
 
 	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
@@ -70,10 +66,10 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 }
 
 async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
-	const storeProductId = event.storeProductId; // Gelato 的產品 ID
-	const externalId = event.externalId; // Shopify 的產品 ID
+	const storeProductId = event.storeProductId;
+	const externalId = event.externalId;
+	const previewUrl = event.previewUrl;
 
-	// 根據 providerProductId 查找本地產品記錄，狀態可以是 pending 或 creating
 	const product = await collections.products.findOne({
 		providerProductId: storeProductId,
 		status: { $in: ["pending", "creating"] },
@@ -84,17 +80,18 @@ async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 		return;
 	}
 
-	// 更新產品記錄
-	await collections.products.updateOne(
-		{ _id: product._id },
-		{
-			$set: {
-				shopifyProductId: externalId,
-				status: "active", // 更新狀態為 active
-				updatedAt: new Date(),
-			},
-		}
-	);
+	const updateData: Record<string, unknown> = {
+		shopifyProductId: externalId,
+		status: "active",
+		updatedAt: new Date(),
+	};
 
-	console.log(`(StoreProductUpdatedl)產品記錄已更新：${product._id}`);
+	// 更新圖片
+	if (previewUrl) {
+		updateData.images = [previewUrl];
+	}
+
+	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
+
+	console.log(`(StoreProductUpdated)產品記錄已更新：${product._id}`);
 }
