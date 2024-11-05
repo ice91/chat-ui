@@ -68,7 +68,7 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 	const storeProductId = event.storeProductId;
 	const externalId = event.externalId;
-	const previewUrl = event.previewUrl;
+	const externalPreviewUrl = event.externalPreviewUrl;
 
 	const product = await collections.products.findOne({
 		providerProductId: storeProductId,
@@ -87,8 +87,8 @@ async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 	};
 
 	// 更新圖片
-	if (previewUrl) {
-		updateData.images = [previewUrl];
+	if (externalPreviewUrl) {
+		updateData.images = [externalPreviewUrl];
 	}
 
 	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
