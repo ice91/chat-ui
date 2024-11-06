@@ -8,7 +8,7 @@ import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { createProductOnGelato } from "$lib/server/gelato";
 import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 引入上傳函數
-import type { Product } from "$lib/types/Product"; // 確保引入 Product 型別
+import type { Product, VariantObject } from "$lib/types/Product"; // 移除未使用的類型
 
 /**
  * 處理產品創建的 POST 請求
@@ -40,11 +40,19 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		const categoryIds = formData.get("categoryIds")
 			? JSON.parse(formData.get("categoryIds") as string)
 			: [];
+		const productType = (formData.get("productType") as string) || "Unknown";
 
 		console.log("templateId:", templateId);
 		// 驗證必填字段
 		if (!title || isNaN(price) || !templateId) {
 			return json({ error: "標題、價格和模板 ID 為必填項" }, { status: 400 });
+		}
+
+		// 從資料庫中獲取模板資料
+		const template = await collections.productTemplates.findOne({ templateId });
+
+		if (!template) {
+			return json({ error: "無效的模板 ID" }, { status: 400 });
 		}
 
 		// 處理圖片上傳
@@ -56,12 +64,27 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			}
 		});
 
-		const imageUrls: string[] = [];
+		// 將圖片佔位符與上傳的圖片對應
+		const imageUrls: Record<string, string> = {};
 		for (const file of files) {
 			const imageUrl = await uploadFileToGCS(file, sellerId);
-			imageUrls.push(imageUrl);
+			// 假設佔位符名稱在文件名中，例如 images[FrontImage]
+			const match = /images\[(.+)\]/.exec(file.name);
+			if (match && match[1]) {
+				const placeholderName = match[1];
+				imageUrls[placeholderName] = imageUrl;
+			}
 		}
-		console.log("imageUrls:", imageUrls);
+
+		// 準備 Gelato API 的變體資料
+		const gelatoVariants: VariantObject[] = template.variants.map((variant) => ({
+			templateVariantId: variant.id,
+			imagePlaceholders: variant.imagePlaceholders.map((placeholder) => ({
+				name: placeholder.name,
+				fileUrl: imageUrls[placeholder.name], // 獲取對應的圖片 URL
+			})),
+			// 如果需要，添加 textPlaceholders
+		}));
 
 		// 在 Gelato 上創建產品
 		const providerResponse = await createProductOnGelato({
@@ -71,38 +94,41 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			isVisibleInTheOnlineStore: true,
 			salesChannels: ["web"],
 			tags,
-			variants: [], // 根據需要填充
-			productType: (formData.get("productType") as string) || "Unknown",
-			vendor: "YourVendorName", // 可根據需要修改
+			variants: gelatoVariants,
+			productType,
+			vendor: template.vendor || "Gelato",
 		});
 
-		console.log("providerResponse:", providerResponse);
 		// 創建本地產品記錄
 		const product: Product = {
 			_id: new ObjectId(),
 			userId: new ObjectId(sellerId),
 			title,
 			description: description || "",
-			images: imageUrls,
+			images: Object.values(imageUrls),
 			price,
 			provider: "Gelato",
-			productType: (formData.get("productType") as string) || "Unknown",
-			variants: formData.get("variants") ? JSON.parse(formData.get("variants") as string) : [],
+			productType,
+			templateId,
+			variants: gelatoVariants,
 			tags,
 			categories: categoryIds ? categoryIds.map((id: string) => new ObjectId(id)) : [],
 			status: "pending", // 初始狀態為 pending
 			createdAt: new Date(),
 			updatedAt: new Date(),
-			providerProductId: providerResponse.id, // 根據 Gelato API 響應設置 storeProductId
-			expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 例如：30天後自動刪除
+			providerProductId: providerResponse.id, // Gelato 的 storeProductId
 		};
 
 		// 保存產品到資料庫
 		await collections.products.insertOne(product);
 
 		return json({ message: "產品創建請求已提交，正在處理中" }, { status: 202 });
-	} catch (error) {
-		console.error("創建產品時出錯：", error);
-		return json({ error: error.message || "內部伺服器錯誤" }, { status: error.status || 500 });
+	} catch (error: unknown) {
+		// 使用 unknown 代替 any，並進行類型檢查
+		console.error("創建產品時出錯：", error instanceof Error ? error.message : "未知錯誤");
+		return json(
+			{ error: error instanceof Error ? error.message : "內部伺服器錯誤" },
+			{ status: 500 }
+		);
 	}
 };
