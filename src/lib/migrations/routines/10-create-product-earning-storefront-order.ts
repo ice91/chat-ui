@@ -1,3 +1,5 @@
+// src/lib/migrations/routines/10-create-product-earning-storefront-order.ts
+
 import { ObjectId } from "mongodb";
 import type { Migration } from ".";
 import { logger } from "$lib/server/logger";
@@ -36,6 +38,13 @@ const createProductEarningStorefrontOrder: Migration = {
 		await orders.createIndex({ sellerId: 1 });
 		await orders.createIndex({ status: 1 });
 
+		// 創建 productTemplates 集合
+		await db.createCollection("productTemplates");
+		const productTemplates = db.collection("productTemplates");
+		// 創建索引
+		await productTemplates.createIndex({ templateId: 1 }, { unique: true });
+		await productTemplates.createIndex({ title: "text", description: "text" });
+
 		logger.info("Created Product, Earning, Storefront, Order collections and indexes.");
 		return true;
 	},
@@ -47,6 +56,7 @@ const createProductEarningStorefrontOrder: Migration = {
 		await db.collection("earnings").drop();
 		await db.collection("storefronts").drop();
 		await db.collection("orders").drop();
+		await db.collection("productTemplates").drop();
 
 		logger.info("Dropped Product, Earning, Storefront, Order collections.");
 		return true;

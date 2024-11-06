@@ -7,12 +7,13 @@ import type {
 	CreateProductResponse,
 	GetProductResponse,
 } from "../providers/ProviderInterface";
+import type { ProductTemplate, VariantObject } from "$lib/types/ProductTemplate";
+import { ObjectId } from "mongodb";
 
 const GELATO_API_BASE_URL = "https://ecommerce.gelatoapis.com/v1";
 const GELATO_API_KEY = env.GELATO_API_KEY;
 const GELATO_STORE_ID = env.GELATO_STORE_ID;
 
-// 創建 Gelato API 客戶端
 const gelatoClient = axios.create({
 	baseURL: GELATO_API_BASE_URL,
 	headers: {
@@ -21,7 +22,6 @@ const gelatoClient = axios.create({
 	},
 });
 
-// 創建產品的函數
 export async function createProductOnGelato(
 	data: CreateProductData
 ): Promise<CreateProductResponse> {
@@ -32,33 +32,75 @@ export async function createProductOnGelato(
 				templateId: data.templateId,
 				title: data.title,
 				description: data.description,
-				isVisibleInTheOnlineStore: data.isVisibleInTheOnlineStore || true,
-				salesChannels: data.salesChannels || ["web"],
-				tags: data.tags || [],
+				isVisibleInTheOnlineStore: data.isVisibleInTheOnlineStore ?? true,
+				salesChannels: data.salesChannels ?? ["web"],
+				tags: data.tags ?? [],
 				variants: data.variants,
-				productType: data.productType || "Printable Material",
-				vendor: data.vendor || "Gelato",
-				// 移除 metadata 字段
+				productType: data.productType ?? "Printable Material",
+				vendor: data.vendor ?? "Gelato",
 			}
 		);
 
-		// 返回完整的響應數據
 		return response.data as CreateProductResponse;
-	} catch (error) {
-		console.error("在 Gelato 創建產品時出錯：", error.response?.data || error.message);
-		throw new Error("無法在 Gelato 上創建產品");
+	} catch (error: unknown) {
+		if (axios.isAxiosError(error) && error.response) {
+			console.error("在 Gelato 創建產品時出錯：", error.response.data);
+			throw new Error("無法在 Gelato 上創建產品");
+		} else {
+			throw new Error(error instanceof Error ? error.message : "未知錯誤");
+		}
 	}
 }
 
-// 獲取產品的函數
 export async function getProductFromGelato(storeProductId: string): Promise<GetProductResponse> {
 	try {
 		const response = await gelatoClient.get(
 			`/stores/${GELATO_STORE_ID}/products/${storeProductId}`
 		);
 		return response.data as GetProductResponse;
-	} catch (error) {
-		console.error("在 Gelato 獲取產品時出錯：", error.response?.data || error.message);
-		throw new Error("無法在 Gelato 上獲取產品");
+	} catch (error: unknown) {
+		if (axios.isAxiosError(error) && error.response) {
+			console.error("在 Gelato 獲取產品時出錯：", error.response.data);
+			throw new Error("無法在 Gelato 上獲取產品");
+		} else {
+			throw new Error(error instanceof Error ? error.message : "未知錯誤");
+		}
+	}
+}
+
+export async function getTemplateFromGelato(templateId: string): Promise<ProductTemplate> {
+	try {
+		const response = await gelatoClient.get(`/templates/${templateId}`);
+		const templateData = response.data;
+
+		const template: ProductTemplate = {
+			_id: new ObjectId(),
+			templateId: templateData.id,
+			templateName: templateData.templateName,
+			title: templateData.title,
+			description: templateData.description,
+			previewUrl: templateData.previewUrl,
+			productType: templateData.productType,
+			vendor: templateData.vendor,
+			variants: templateData.variants.map((variant: VariantObject) => ({
+				id: variant.id,
+				title: variant.title,
+				productUid: variant.productUid,
+				variantOptions: variant.variantOptions,
+				imagePlaceholders: variant.imagePlaceholders,
+				textPlaceholders: variant.textPlaceholders || [],
+			})),
+			createdAt: new Date(templateData.createdAt),
+			updatedAt: new Date(templateData.updatedAt),
+		};
+
+		return template;
+	} catch (error: unknown) {
+		if (axios.isAxiosError(error) && error.response) {
+			console.error("在 Gelato 獲取模板時出錯：", error.response.data);
+			throw new Error("無法在 Gelato 上獲取模板");
+		} else {
+			throw new Error(error instanceof Error ? error.message : "未知錯誤");
+		}
 	}
 }

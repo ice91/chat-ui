@@ -1,3 +1,4 @@
+// src/lib/server/tools/calculator.ts
 import type { ConfigTool } from "$lib/types/Tool";
 import { ObjectId } from "mongodb";
 import vm from "node:vm";

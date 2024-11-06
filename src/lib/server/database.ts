@@ -1,4 +1,4 @@
-// src/lib/server/database
+// src/lib/server/database.ts
 
 import { env } from "$env/dynamic/private";
 import { GridFSBucket, MongoClient } from "mongodb";
@@ -16,12 +16,13 @@ import type { MigrationResult } from "$lib/types/MigrationResult";
 import type { Semaphore } from "$lib/types/Semaphore";
 import type { AssistantStats } from "$lib/types/AssistantStats";
 import type { CommunityToolDB } from "$lib/types/Tool";
-import type { ReferralCode } from "$lib/types/ReferralCode"; // 新增的类型
+import type { ReferralCode } from "$lib/types/ReferralCode";
 import type { Product } from "$lib/types/Product";
 import type { Earning } from "$lib/types/Earning";
 import type { Storefront } from "$lib/types/Storefront";
 import type { Order } from "$lib/types/Order";
 import type { StateStore } from "$lib/types/StateStore";
+import type { ProductTemplate } from "$lib/types/ProductTemplate"; // 新增的類型
 
 import { logger } from "$lib/server/logger";
 import { building } from "$app/environment";
@@ -97,13 +98,12 @@ export class Database {
 		const tokenCaches = db.collection<TokenCache>("tokens");
 		const tools = db.collection<CommunityToolDB>("tools");
 		const referralCodes = db.collection<ReferralCode>("referralCodes"); // 新增的集合
-
 		const products = db.collection<Product>("products");
 		const earnings = db.collection<Earning>("earnings");
 		const storefronts = db.collection<Storefront>("storefronts");
 		const orders = db.collection<Order>("orders");
-		// 添加 stateStore 集合
 		const stateStore = db.collection<StateStore>("stateStore");
+		const productTemplates = db.collection<ProductTemplate>("productTemplates"); // 新增的集合
 
 		return {
 			conversations,
@@ -122,12 +122,13 @@ export class Database {
 			semaphores,
 			tokenCaches,
 			tools,
-			referralCodes, // 添加到返回的对象中
+			referralCodes, // 添加到返回的對象中
 			products,
 			earnings,
 			storefronts,
 			orders,
 			stateStore, // 新增的 stateStore 集合
+			productTemplates, // 新增的 productTemplates 集合
 		};
 	}
 
@@ -156,7 +157,8 @@ export class Database {
 			earnings,
 			storefronts,
 			orders,
-			stateStore, // 获取 stateStore
+			stateStore,
+			productTemplates, // 获取 productTemplates
 		} = this.getCollections();
 
 		conversations
@@ -177,12 +179,9 @@ export class Database {
 				{ partialFilterExpression: { userId: { $exists: true } } }
 			)
 			.catch((e) => logger.error(e));
-		// Not strictly necessary, could use _id, but more convenient. Also for stats
-		// To do stats on conversation messages
 		conversations
 			.createIndex({ "messages.createdAt": 1 }, { sparse: true })
 			.catch((e) => logger.error(e));
-		// Unique index for stats
 		conversationStats
 			.createIndex(
 				{
@@ -195,7 +194,6 @@ export class Database {
 				{ unique: true }
 			)
 			.catch((e) => logger.error(e));
-		// Allow easy check of last computed stat for given type/dateField
 		conversationStats
 			.createIndex({
 				type: 1,
@@ -221,7 +219,6 @@ export class Database {
 		users
 			.createIndex({ sessionId: 1 }, { unique: true, sparse: true })
 			.catch((e) => logger.error(e));
-		// No unicity because due to renames & outdated info from oauth provider, there may be the same username on different users
 		users.createIndex({ username: 1 }).catch((e) => logger.error(e));
 		messageEvents
 			.createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 })
@@ -238,13 +235,11 @@ export class Database {
 			.createIndex({ last24HoursUseCount: -1, useCount: -1, _id: 1 })
 			.catch((e) => logger.error(e));
 		assistantStats
-			// Order of keys is important for the queries
 			.createIndex({ "date.span": 1, "date.at": 1, assistantId: 1 }, { unique: true })
 			.catch((e) => logger.error(e));
 		reports.createIndex({ assistantId: 1 }).catch((e) => logger.error(e));
 		reports.createIndex({ createdBy: 1, assistantId: 1 }).catch((e) => logger.error(e));
 
-		// Unique index for semaphore and migration results
 		semaphores.createIndex({ key: 1 }, { unique: true }).catch((e) => logger.error(e));
 		semaphores
 			.createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 })
@@ -257,35 +252,36 @@ export class Database {
 		tools.createIndex({ userCount: 1 }).catch((e) => logger.error(e));
 		tools.createIndex({ last24HoursCount: 1 }).catch((e) => logger.error(e));
 
-		// 创建 referralCodes 的索引
 		referralCodes.createIndex({ code: 1 }, { unique: true }).catch((e) => logger.error(e));
 		referralCodes.createIndex({ createdBy: 1 }).catch((e) => logger.error(e));
 		referralCodes.createIndex({ usedBy: 1 }, { sparse: true }).catch((e) => logger.error(e));
 
-		// 初始化 products 集合的索引
 		products.createIndex({ userId: 1 }).catch((e) => logger.error(e));
 		products
 			.createIndex({ shopifyProductId: 1 }, { unique: true, sparse: true })
 			.catch((e) => logger.error(e));
 		products.createIndex({ status: 1 }).catch((e) => logger.error(e));
 
-		// 初始化 earnings 集合的索引
 		earnings.createIndex({ userId: 1 }).catch((e) => logger.error(e));
 		earnings.createIndex({ orderId: 1 }, { unique: true }).catch((e) => logger.error(e));
 
-		// 初始化 storefronts 集合的索引
 		storefronts.createIndex({ userId: 1 }, { unique: true }).catch((e) => logger.error(e));
 		storefronts.createIndex({ storefrontUrl: 1 }, { unique: true }).catch((e) => logger.error(e));
 
-		// 初始化 orders 集合的索引
 		orders.createIndex({ shopifyOrderId: 1 }, { unique: true }).catch((e) => logger.error(e));
 		orders.createIndex({ productId: 1 }).catch((e) => logger.error(e));
 		orders.createIndex({ sellerId: 1 }).catch((e) => logger.error(e));
 		orders.createIndex({ status: 1 }).catch((e) => logger.error(e));
-		// 创建 stateStore 的索引
+
 		stateStore.createIndex({ state: 1 }, { unique: true }).catch((e) => logger.error(e));
 		stateStore
 			.createIndex({ expiration: 1 }, { expireAfterSeconds: 0 })
+			.catch((e) => logger.error(e));
+
+		// 為 productTemplates 集合創建索引
+		productTemplates.createIndex({ templateId: 1 }, { unique: true }).catch((e) => logger.error(e));
+		productTemplates
+			.createIndex({ title: "text", description: "text" })
 			.catch((e) => logger.error(e));
 	}
 }
