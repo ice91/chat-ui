@@ -1,5 +1,3 @@
-// src/routes/api/products/[id]/+server.ts
-
 import type { RequestHandler } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { ObjectId } from "mongodb";
@@ -7,12 +5,9 @@ import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { updateProductOnShopify, deleteProductOnShopify } from "$lib/server/shopify";
-import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 引入上傳函數
-import type { Product } from "$lib/types/Product"; // 確保引入 Product 型別
+import uploadFileToGCS from "$lib/server/files/uploadFileToGCS";
+import type { Product } from "$lib/types/Product";
 
-/**
- * 獲取產品詳情的 GET 請求處理程序
- */
 export const GET: RequestHandler = async ({ params }) => {
 	try {
 		const productId = new ObjectId(params.id);
@@ -31,9 +26,6 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 };
 
-/**
- * 處理產品更新的 PUT 請求
- */
 export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 	try {
 		const productId = new ObjectId(params.id);
@@ -61,9 +53,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		const categoryIds = formData.get("categoryIds")
 			? JSON.parse(formData.get("categoryIds") as string)
 			: [];
-		const existingImages = formData.get("existingImages")
-			? JSON.parse(formData.get("existingImages") as string)
-			: [];
+		const existingImages = formData.getAll("existingImages") as string[];
 
 		// 驗證必填字段
 		if (!title || isNaN(price) || !description) {
@@ -72,13 +62,18 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 
 		// 處理圖片上傳
 		const newImages: string[] = [];
-		//const existingImages = formData.getAll("existingImages") as string[];
 
 		// 處理新上傳的圖片
-		const imageFiles = formData.getAll("images") as File[];
-		for (const file of imageFiles) {
-			const imageUrl = await uploadFileToGCS(file, sellerId);
-			newImages.push(imageUrl);
+		const imageEntries = Array.from(formData.entries()).filter(([key]) =>
+			key.startsWith("images[")
+		);
+
+		for (const [, value] of imageEntries) {
+			const file = value as File;
+			if (file && file.size > 0) {
+				const imageUrl = await uploadFileToGCS(file, userId.toString());
+				newImages.push(imageUrl);
+			}
 		}
 
 		// 合併現有圖片和新上傳的圖片
@@ -110,7 +105,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		const updateData: Partial<Product> = {
 			title: title || existingProduct.title,
 			description: description || existingProduct.description,
-			images: updatedImages, // 使用合併後的圖片
+			images: updatedImages,
 			price: price || existingProduct.price,
 			productType: (formData.get("productType") as string) || existingProduct.productType,
 			variants: formData.get("variants")
@@ -140,9 +135,6 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 	}
 };
 
-/**
- * 處理產品刪除的 DELETE 請求
- */
 export const DELETE: RequestHandler = async ({ params, cookies }) => {
 	try {
 		const productId = new ObjectId(params.id);
