@@ -56,35 +56,57 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 
 		// 處理圖片上傳
-		const files: File[] = [];
+		const imageFiles: Record<string, File> = {};
 		formData.forEach((value, key) => {
 			if (key.startsWith("images[")) {
 				const file = value as File;
-				if (file) files.push(file);
+				if (file) {
+					// 從鍵名中提取佔位符名稱，例如 images[FrontImage]
+					const match = /images\[(.+)\]/.exec(key);
+					if (match && match[1]) {
+						const placeholderName = match[1];
+						imageFiles[placeholderName] = file;
+						console.log(`找到圖片佔位符 "${placeholderName}" 對應的文件: ${file.name}`);
+					}
+				}
 			}
 		});
 
-		// 將圖片佔位符與上傳的圖片對應
-		const imageUrls: Record<string, string> = {};
-		for (const file of files) {
-			const imageUrl = await uploadFileToGCS(file, sellerId);
-			// 假設佔位符名稱在文件名中，例如 images[FrontImage]
-			const match = /images\[(.+)\]/.exec(file.name);
-			if (match && match[1]) {
-				const placeholderName = match[1];
-				imageUrls[placeholderName] = imageUrl;
+		// 檢查是否所有佔位符都有對應的圖片
+		for (const variant of template.variants) {
+			for (const placeholder of variant.imagePlaceholders) {
+				if (!imageFiles[placeholder.name]) {
+					throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+				}
 			}
+		}
+
+		// 將圖片上傳並獲取 URL
+		const imageUrls: Record<string, string> = {};
+		for (const placeholderName in imageFiles) {
+			const file = imageFiles[placeholderName];
+			const imageUrl = await uploadFileToGCS(file, sellerId);
+			console.log(`上傳圖片佔位符 "${placeholderName}"，獲取的 URL：${imageUrl}`);
+			imageUrls[placeholderName] = imageUrl;
 		}
 
 		// 準備 Gelato API 的變體資料
 		const gelatoVariants: VariantObject[] = template.variants.map((variant) => ({
 			templateVariantId: variant.id,
-			imagePlaceholders: variant.imagePlaceholders.map((placeholder) => ({
-				name: placeholder.name,
-				fileUrl: imageUrls[placeholder.name], // 獲取對應的圖片 URL
-			})),
+			imagePlaceholders: variant.imagePlaceholders.map((placeholder) => {
+				const fileUrl = imageUrls[placeholder.name];
+				if (!fileUrl) {
+					throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+				}
+				return {
+					name: placeholder.name,
+					fileUrl,
+				};
+			}),
 			// 如果需要，添加 textPlaceholders
 		}));
+
+		console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
 
 		// 在 Gelato 上創建產品
 		const providerResponse = await createProductOnGelato({
@@ -100,7 +122,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		});
 
 		// 創建本地產品記錄
-		const product: Product = {
+		const newProduct: Product = {
 			_id: new ObjectId(),
 			userId: new ObjectId(sellerId),
 			title,
@@ -120,7 +142,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		};
 
 		// 保存產品到資料庫
-		await collections.products.insertOne(product);
+		await collections.products.insertOne(newProduct);
 
 		return json({ message: "產品創建請求已提交，正在處理中" }, { status: 202 });
 	} catch (error: unknown) {
