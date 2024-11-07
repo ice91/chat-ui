@@ -72,7 +72,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 
 		// 處理圖片上傳
 		const newImages: string[] = [];
-		const existingImages = formData.getAll("existingImages") as string[];
+		//const existingImages = formData.getAll("existingImages") as string[];
 
 		// 處理新上傳的圖片
 		const imageFiles = formData.getAll("images") as File[];
