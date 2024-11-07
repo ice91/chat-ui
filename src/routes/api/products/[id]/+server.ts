@@ -71,28 +71,24 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		}
 
 		// 處理圖片上傳
-		const files: File[] = [];
-		formData.forEach((value, key) => {
-			if (key.startsWith("images[")) {
-				const file = value as File;
-				if (file) files.push(file);
-			}
-		});
+		const newImages: string[] = [];
+		const existingImages = formData.getAll("existingImages") as string[];
 
-		const imageUrls: string[] = [];
-		for (const file of files) {
-			const imageUrl = await uploadFileToGCS(file, userId.toHexString());
-			imageUrls.push(imageUrl);
+		// 處理新上傳的圖片
+		const imageFiles = formData.getAll("images") as File[];
+		for (const file of imageFiles) {
+			const imageUrl = await uploadFileToGCS(file, sellerId);
+			newImages.push(imageUrl);
 		}
+
+		// 合併現有圖片和新上傳的圖片
+		const updatedImages = [...existingImages, ...newImages];
 
 		// 獲取要更新的產品
 		const existingProduct = await collections.products.findOne({ _id: productId, userId });
 		if (!existingProduct) {
 			return json({ error: "產品未找到或無權限" }, { status: 404 });
 		}
-
-		// 合併圖片
-		const updatedImages = [...existingImages, ...imageUrls];
 
 		// 更新 Shopify 產品
 		const shopifyProductData = {
