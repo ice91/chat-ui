@@ -1,131 +1,45 @@
-// src/lib/server/shopify.ts
-
 import axios from "axios";
 import { env } from "$env/dynamic/private";
 import type { Product } from "$lib/types/Product";
 
 const shopifyApiVersion = "2024-10";
-const shopifyAdminUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/${shopifyApiVersion}/graphql.json`;
-const accessToken = env.SHOPIFY_ACCESS_TOKEN;
+const shopifyBaseUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
 
-let hydrogenPublicationIds: string[] | null = null;
+let hydrogenPublicationId: string | null = null;
 
-/**
- * 定義 Shopify Publication 的結構
- */
+// 定義 GraphQL 回應資料的型別
 interface PublicationNode {
 	id: string;
 	name: string;
 }
 
-/**
- * 定義 Shopify GraphQL 查詢返回的 publications 結構
- */
-interface PublicationsResponse {
+interface PublicationEdge {
+	node: PublicationNode;
+}
+
+interface PublicationsData {
 	data: {
 		publications: {
-			edges: {
-				node: PublicationNode;
-			}[];
+			edges: PublicationEdge[];
 		};
 	};
-	errors?: Array<{
-		message: string;
-	}>;
 }
 
 /**
- * 定義 Shopify GraphQL Mutation 返回的產品發布結構
+ * 獲取 Hydrogen 店面的 publicationId，並緩存
+ * @returns Hydrogen 店面的 publicationId
  */
-interface ProductPublishResponse {
-	data: {
-		productPublish: {
-			product: {
-				id: string;
-			};
-			userErrors: Array<{
-				field: string[];
-				message: string;
-			}>;
-		};
-	};
-	errors?: Array<{
-		message: string;
-	}>;
-}
-
-/**
- * 定義 Shopify GraphQL Mutation 返回的產品創建結構
- */
-interface ProductCreateResponse {
-	data: {
-		productCreate: {
-			product: {
-				id: string;
-				handle: string;
-			};
-			userErrors: Array<{
-				field: string[];
-				message: string;
-			}>;
-		};
-	};
-	errors?: Array<{
-		message: string;
-	}>;
-}
-
-/**
- * 定義 Shopify GraphQL Mutation 返回的產品更新結構
- */
-interface ProductUpdateResponse {
-	data: {
-		productUpdate: {
-			product: {
-				id: string;
-				handle: string;
-			};
-			userErrors: Array<{
-				field: string[];
-				message: string;
-			}>;
-		};
-	};
-	errors?: Array<{
-		message: string;
-	}>;
-}
-
-/**
- * 定義 Shopify GraphQL Mutation 返回的產品刪除結構
- */
-interface ProductDeleteResponse {
-	data: {
-		productDelete: {
-			deletedProductId: string;
-			userErrors: Array<{
-				field: string[];
-				message: string;
-			}>;
-		};
-	};
-	errors?: Array<{
-		message: string;
-	}>;
-}
-
-/**
- * 獲取 Hydrogen 店面的所有 publicationIds，並緩存
- * @returns Hydrogen 店面的 publicationIds
- */
-async function getHydrogenPublicationIds(): Promise<string[]> {
-	if (hydrogenPublicationIds) {
-		return hydrogenPublicationIds;
+async function getHydrogenPublicationId(): Promise<string> {
+	if (hydrogenPublicationId) {
+		return hydrogenPublicationId;
 	}
+
+	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 
 	const query = `
     query {
-      publications(first: 50) { # 調整數量根據需要
+      publications(first: 10) {
         edges {
           node {
             id
@@ -137,7 +51,7 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
   `;
 
 	try {
-		const response = await axios.post<PublicationsResponse>(
+		const response = await axios.post<PublicationsData>(
 			shopifyAdminUrl,
 			{ query },
 			{
@@ -148,25 +62,19 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
 			}
 		);
 
-		if (response.data.errors) {
-			throw new Error(`Shopify API 錯誤：${response.data.errors[0].message}`);
-		}
-
 		const publications = response.data.data.publications.edges;
-		const targetPublicationNames = ["CanvasTalk Art Store", "畫語空間"]; // 根據您的需求調整
-
-		const hydrogenPublications = publications.filter((edge) =>
-			targetPublicationNames.includes(edge.node.name)
+		const hydrogenPublication = publications.find(
+			(edge: PublicationEdge) => edge.node.name === "CanvasTalk Art Store" // 您的 Hydrogen 商店名稱
 		);
 
-		if (hydrogenPublications.length === 0) {
-			throw new Error("未能找到指定的 Hydrogen 商店的 publicationIds");
+		if (hydrogenPublication) {
+			hydrogenPublicationId = hydrogenPublication.node.id;
+			return hydrogenPublicationId;
+		} else {
+			throw new Error("未能找到 Hydrogen 商店的 publicationId");
 		}
-
-		hydrogenPublicationIds = hydrogenPublications.map((pub) => pub.node.id);
-		return hydrogenPublicationIds;
 	} catch (error) {
-		console.error("在獲取 Hydrogen publicationIds 時出錯：", (error as Error).message);
+		console.error("在獲取 Hydrogen publicationId 時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
@@ -175,9 +83,12 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
  * 將產品發布到 Hydrogen 商店
  * @param productGID 產品的全局 ID（GID）
  */
-async function publishProductToHydrogenStore(productGID: string): Promise<void> {
-	// 獲取 Hydrogen 的所有 publicationIds
-	const hydrogenPublicationIds = await getHydrogenPublicationIds();
+async function publishProductToHydrogenStore(productGID: string) {
+	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
+
+	// 獲取 Hydrogen 的 publicationId
+	const hydrogenPublicationId = await getHydrogenPublicationId();
 
 	const mutation = `
     mutation publishProduct($id: ID!, $productPublications: [ProductPublicationInput!]!) {
@@ -195,13 +106,15 @@ async function publishProductToHydrogenStore(productGID: string): Promise<void> 
 
 	const variables = {
 		id: productGID,
-		productPublications: hydrogenPublicationIds.map((pubId) => ({
-			publicationId: pubId,
-		})),
+		productPublications: [
+			{
+				publicationId: hydrogenPublicationId,
+			},
+		],
 	};
 
 	try {
-		const response = await axios.post<ProductPublishResponse>(
+		const response = await axios.post(
 			shopifyAdminUrl,
 			{ query: mutation, variables },
 			{
@@ -212,20 +125,20 @@ async function publishProductToHydrogenStore(productGID: string): Promise<void> 
 			}
 		);
 
-		if (response.data.errors) {
-			console.error("發布產品時發生錯誤：", response.data.errors);
-			throw new Error(`發布產品時發生錯誤：${response.data.errors[0].message}`);
+		const data = response.data;
+		if (data.errors) {
+			console.error("發布產品時發生錯誤：", data.errors);
+			throw new Error(`發布產品時發生錯誤：${data.errors[0].message}`);
 		}
 
-		const userErrors = response.data.data.productPublish.userErrors;
-		if (userErrors.length > 0) {
-			console.error("發布產品時的使用者錯誤：", userErrors);
-			throw new Error(`發布產品時的使用者錯誤：${userErrors[0].message}`);
+		if (data.data.productPublish.userErrors.length > 0) {
+			console.error("發布產品時的使用者錯誤：", data.data.productPublish.userErrors);
+			throw new Error(`發布產品時的使用者錯誤：${data.data.productPublish.userErrors[0].message}`);
 		}
 
 		console.log(`產品已成功發布到 Hydrogen 商店：${productGID}`);
 	} catch (error) {
-		console.error("在發布產品到 Hydrogen 商店時出錯：", (error as Error).message);
+		console.error("在發布產品到 Hydrogen 商店時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
@@ -235,76 +148,29 @@ async function publishProductToHydrogenStore(productGID: string): Promise<void> 
  * @param productData 產品數據
  * @returns Shopify 的產品創建回應
  */
-export async function createProductOnShopify(
-	productData: Product
-): Promise<{ id: string; handle: string }> {
-	const mutation = `
-    mutation createProduct($input: ProductInput!) {
-      productCreate(input: $input) {
-        product {
-          id
-          handle
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-	const variables = {
-		input: {
-			title: productData.title,
-			bodyHtml: productData.body_html,
-			vendor: productData.vendor,
-			productType: productData.product_type,
-			tags: productData.tags.split(", ").filter((tag) => tag),
-			images: productData.images.map((url: string) => ({ src: url })),
-			variants: productData.variants.map((variant) => ({
-				price: variant.price,
-				sku: variant.sku,
-				option1: variant.option1,
-			})),
-		},
-	};
-
+export async function createProductOnShopify(productData: Product) {
 	try {
-		const response = await axios.post<ProductCreateResponse>(
-			shopifyAdminUrl,
-			{ query: mutation, variables },
+		const response = await axios.post(
+			`${shopifyBaseUrl}/products.json`,
+			{ product: productData },
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"X-Shopify-Access-Token": accessToken,
+					"X-Shopify-Access-Token": env.SHOPIFY_ACCESS_TOKEN,
 				},
 			}
 		);
 
-		if (response.data.errors) {
-			console.error("創建產品時發生錯誤：", response.data.errors);
-			throw new Error(`創建產品時發生錯誤：${response.data.errors[0].message}`);
-		}
-
-		const userErrors = response.data.data.productCreate.userErrors;
-		if (userErrors.length > 0) {
-			console.error("創建產品時的使用者錯誤：", userErrors);
-			throw new Error(`創建產品時的使用者錯誤：${userErrors[0].message}`);
-		}
-
-		const createdProduct = response.data.data.productCreate.product;
-		const productGID = createdProduct.id;
+		const createdProduct = response.data.product;
+		const productId = createdProduct.id;
+		const productGID = `gid://shopify/Product/${productId}`;
 
 		// 將產品發布到 Hydrogen 商店
 		await publishProductToHydrogenStore(productGID);
 
-		console.log(`產品已成功創建並發布：${productGID}`);
-		return {
-			id: createdProduct.id,
-			handle: createdProduct.handle,
-		};
+		return createdProduct;
 	} catch (error) {
-		console.error("在 Shopify 創建產品時出錯：", (error as Error).message);
+		console.error("在 Shopify 創建產品時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
@@ -315,78 +181,22 @@ export async function createProductOnShopify(
  * @param productData 更新的產品數據
  * @returns Shopify 的產品更新回應
  */
-export async function updateProductOnShopify(
-	productId: string,
-	productData: Product
-): Promise<{ id: string; handle: string }> {
-	const mutation = `
-    mutation updateProduct($id: ID!, $input: ProductInput!) {
-      productUpdate(id: $id, input: $input) {
-        product {
-          id
-          handle
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-	const variables = {
-		id: productId,
-		input: {
-			title: productData.title,
-			bodyHtml: productData.body_html,
-			vendor: productData.vendor,
-			productType: productData.product_type,
-			tags: productData.tags.split(", ").filter((tag) => tag),
-			images: productData.images.map((url: string) => ({ src: url })),
-			variants: productData.variants.map((variant) => ({
-				price: variant.price,
-				sku: variant.sku,
-				option1: variant.option1,
-			})),
-		},
-	};
-
+export async function updateProductOnShopify(productId: string, productData: Product) {
 	try {
-		const response = await axios.post<ProductUpdateResponse>(
-			shopifyAdminUrl,
-			{ query: mutation, variables },
+		const response = await axios.put(
+			`${shopifyBaseUrl}/products/${productId}.json`,
+			{ product: productData },
 			{
 				headers: {
 					"Content-Type": "application/json",
-					"X-Shopify-Access-Token": accessToken,
+					"X-Shopify-Access-Token": env.SHOPIFY_ACCESS_TOKEN,
 				},
 			}
 		);
 
-		if (response.data.errors) {
-			console.error("更新產品時發生錯誤：", response.data.errors);
-			throw new Error(`更新產品時發生錯誤：${response.data.errors[0].message}`);
-		}
-
-		const userErrors = response.data.data.productUpdate.userErrors;
-		if (userErrors.length > 0) {
-			console.error("更新產品時的使用者錯誤：", userErrors);
-			throw new Error(`更新產品時的使用者錯誤：${userErrors[0].message}`);
-		}
-
-		const updatedProduct = response.data.data.productUpdate.product;
-		const productGID = updatedProduct.id;
-
-		// 如果需要，可以再次發布產品到 Hydrogen 商店
-		// await publishProductToHydrogenStore(productGID);
-
-		console.log(`產品已成功更新：${productGID}`);
-		return {
-			id: updatedProduct.id,
-			handle: updatedProduct.handle,
-		};
+		return response.data.product;
 	} catch (error) {
-		console.error("在 Shopify 更新產品時出錯：", (error as Error).message);
+		console.error("更新 Shopify 產品時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
@@ -395,49 +205,15 @@ export async function updateProductOnShopify(
  * 在 Shopify 上刪除產品
  * @param productId Shopify 的產品 ID
  */
-export async function deleteProductOnShopify(productId: string): Promise<void> {
-	const mutation = `
-    mutation deleteProduct($id: ID!) {
-      productDelete(id: $id) {
-        deletedProductId
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-	const variables = {
-		id: productId,
-	};
-
+export async function deleteProductOnShopify(productId: string) {
 	try {
-		const response = await axios.post<ProductDeleteResponse>(
-			shopifyAdminUrl,
-			{ query: mutation, variables },
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"X-Shopify-Access-Token": accessToken,
-				},
-			}
-		);
-
-		if (response.data.errors) {
-			console.error("刪除產品時發生錯誤：", response.data.errors);
-			throw new Error(`刪除產品時發生錯誤：${response.data.errors[0].message}`);
-		}
-
-		const userErrors = response.data.data.productDelete.userErrors;
-		if (userErrors.length > 0) {
-			console.error("刪除產品時的使用者錯誤：", userErrors);
-			throw new Error(`刪除產品時的使用者錯誤：${userErrors[0].message}`);
-		}
-
-		console.log(`產品已成功刪除：${response.data.data.productDelete.deletedProductId}`);
+		await axios.delete(`${shopifyBaseUrl}/products/${productId}.json`, {
+			headers: {
+				"X-Shopify-Access-Token": env.SHOPIFY_ACCESS_TOKEN,
+			},
+		});
 	} catch (error) {
-		console.error("在 Shopify 刪除產品時出錯：", (error as Error).message);
+		console.error("刪除 Shopify 產品時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
@@ -448,6 +224,9 @@ export async function deleteProductOnShopify(productId: string): Promise<void> {
  * @returns 產品的 handle
  */
 export async function getShopifyProductHandle(productId: string): Promise<string> {
+	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
+
 	const query = `
     query getProduct($id: ID!) {
       product(id: $id) {
@@ -461,10 +240,7 @@ export async function getShopifyProductHandle(productId: string): Promise<string
 	};
 
 	try {
-		const response = await axios.post<{
-			data: { product: { handle: string } };
-			errors?: Array<{ message: string }>;
-		}>(
+		const response = await axios.post(
 			shopifyAdminUrl,
 			{ query, variables },
 			{
@@ -486,7 +262,7 @@ export async function getShopifyProductHandle(productId: string): Promise<string
 
 		return handle;
 	} catch (error) {
-		console.error("在獲取產品 handle 時出錯：", (error as Error).message);
+		console.error("在獲取產品 handle 時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
