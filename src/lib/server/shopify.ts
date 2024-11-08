@@ -76,7 +76,7 @@ export async function deleteProductOnShopify(productId: string) {
 }
 
 export async function getShopifyProductHandle(productId: string): Promise<string> {
-	const shopifyAdminUrl = `https://${env.PUBLIC_STORE_DOMAIN}/admin/api/2023-07/graphql.json`;
+	const shopifyAdminUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/2023-07/graphql.json`;
 	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 
 	const query = `
