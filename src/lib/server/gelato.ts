@@ -33,7 +33,7 @@ export async function createProductOnGelato(
 				title: data.title,
 				description: data.description,
 				isVisibleInTheOnlineStore: data.isVisibleInTheOnlineStore ?? true,
-				salesChannels: data.salesChannels ?? ["global"],
+				salesChannels: data.salesChannels ?? ["web"],
 				tags: data.tags ?? [],
 				variants: data.variants,
 				productType: data.productType ?? "Printable Material",

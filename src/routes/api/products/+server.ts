@@ -115,7 +115,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			title,
 			description,
 			isVisibleInTheOnlineStore: true,
-			salesChannels: ["global"],
+			salesChannels: ["web"],
 			tags,
 			variants: gelatoVariants,
 			productType,
