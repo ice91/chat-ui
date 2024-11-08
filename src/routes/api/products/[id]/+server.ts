@@ -47,7 +47,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		// 解析 multipart/form-data
 		const formData = await request.formData();
 		const title = formData.get("title") as string;
-		const price = parseFloat(formData.get("price") as string);
+		//const price = parseFloat(formData.get("price") as string);
 		const description = formData.get("description") as string;
 		const tags = formData.get("tags") ? JSON.parse(formData.get("tags") as string) : [];
 		const categoryIds = formData.get("categoryIds")
@@ -56,8 +56,8 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 		const existingImages = formData.getAll("existingImages") as string[];
 
 		// 驗證必填字段
-		if (!title || isNaN(price) || !description) {
-			return json({ error: "標題、價格和描述為必填項" }, { status: 400 });
+		if (!title || !description) {
+			return json({ error: "標題和描述為必填項" }, { status: 400 });
 		}
 
 		// 處理圖片上傳
@@ -106,7 +106,7 @@ export const PUT: RequestHandler = async ({ params, request, cookies }) => {
 			title: title || existingProduct.title,
 			description: description || existingProduct.description,
 			images: updatedImages,
-			price: price || existingProduct.price,
+			//price: price || existingProduct.price,
 			productType: (formData.get("productType") as string) || existingProduct.productType,
 			variants: formData.get("variants")
 				? JSON.parse(formData.get("variants") as string)

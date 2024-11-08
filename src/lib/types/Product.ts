@@ -10,7 +10,6 @@ export interface Product extends Timestamps {
 	title: string;
 	description: string;
 	images: string[];
-	price: number;
 	provider: string; // 例如：'Gelato'
 	providerProductId?: string; // Gelato 平台上的產品ID（storeProductId）
 	shopifyProductId?: string; // Shopify 平台上的產品ID（externalId）

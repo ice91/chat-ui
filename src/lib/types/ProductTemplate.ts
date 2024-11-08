@@ -8,7 +8,6 @@ export interface ProductTemplate {
 	templateName: string;
 	title: string;
 	description: string;
-	price: number;
 	tags: string[];
 	categories: string[];
 	previewUrl: string;

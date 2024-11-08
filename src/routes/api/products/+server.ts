@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		// 解析 multipart/form-data
 		const formData = await request.formData();
 		const title = formData.get("title") as string;
-		const price = parseFloat(formData.get("price") as string);
+		//const price = parseFloat(formData.get("price") as string);
 		const description = formData.get("description") as string;
 		const templateId = formData.get("templateId") as string;
 		const tags = formData.get("tags") ? JSON.parse(formData.get("tags") as string) : [];
@@ -44,8 +44,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		console.log("templateId:", templateId);
 		// 驗證必填字段
-		if (!title || isNaN(price) || !templateId) {
-			return json({ error: "標題、價格和模板 ID 為必填項" }, { status: 400 });
+		if (!title || !templateId) {
+			return json({ error: "標題和模板 ID 為必填項" }, { status: 400 });
 		}
 
 		// 從資料庫中獲取模板資料
@@ -114,7 +114,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			title,
 			description,
 			isVisibleInTheOnlineStore: true,
-			salesChannels: ["web"],
+			salesChannels: ["global"],
 			tags,
 			variants: gelatoVariants,
 			productType,
@@ -128,7 +128,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			title,
 			description: description || "",
 			images: Object.values(imageUrls),
-			price,
 			provider: "Gelato",
 			productType,
 			templateId,
