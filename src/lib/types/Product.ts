@@ -14,6 +14,7 @@ export interface Product extends Timestamps {
 	provider: string; // 例如：'Gelato'
 	providerProductId?: string; // Gelato 平台上的產品ID（storeProductId）
 	shopifyProductId?: string; // Shopify 平台上的產品ID（externalId）
+	handle: string; // 新增的屬性，保存 Shopify 產品的 handle
 	productType: string; // 例如：'t-shirt'、'mug'
 	templateId: string; // 關聯的模板 ID
 	variants: VariantObject[]; // 使用與 ProductTemplate 相同的 VariantObject 類型

@@ -10,7 +10,12 @@ import type {
 	StoreProductCreatedEvent,
 	StoreProductUpdatedEvent,
 } from "$lib/types/WebhookEvents";
+import { getShopifyProductHandle } from "$lib/server/shopify";
 
+/**
+ * 處理 Gelato Webhook 事件
+ * @param event Gelato Webhook 事件
+ */
 export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
 	const eventType = event.event;
 
@@ -29,6 +34,10 @@ export async function handleGelatoWebhookEvent(event: GelatoWebhookEvent) {
 	}
 }
 
+/**
+ * 處理模板創建事件
+ * @param event StoreProductTemplateCreatedEvent
+ */
 async function handleStoreProductTemplateCreated(event: StoreProductTemplateCreatedEvent) {
 	const templateId = event.storeProductTemplateId;
 
@@ -51,6 +60,10 @@ async function handleStoreProductTemplateCreated(event: StoreProductTemplateCrea
 	console.log(`模板已創建並存儲：${templateId}`);
 }
 
+/**
+ * 處理模板更新事件
+ * @param event StoreProductTemplateUpdatedEvent
+ */
 async function handleStoreProductTemplateUpdated(event: StoreProductTemplateUpdatedEvent) {
 	const templateId = event.storeProductTemplateId;
 
@@ -77,6 +90,10 @@ async function handleStoreProductTemplateUpdated(event: StoreProductTemplateUpda
 	console.log(`模板已更新：${templateId}`);
 }
 
+/**
+ * 處理模板刪除事件
+ * @param event StoreProductTemplateDeletedEvent
+ */
 async function handleStoreProductTemplateDeleted(event: StoreProductTemplateDeletedEvent) {
 	const templateId = event.storeProductTemplateId;
 
@@ -86,11 +103,16 @@ async function handleStoreProductTemplateDeleted(event: StoreProductTemplateDele
 	console.log(`模板已刪除：${templateId}`);
 }
 
-async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
+/**
+ * 處理產品創建事件
+ * @param event StoreProductCreatedEvent
+ */
+export async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 	const storeProductId = event.storeProductId;
 	let externalId = event.externalId;
 	let previewUrl = event.previewUrl;
 
+	// 查找對應的產品記錄，狀態為 "pending"
 	const product = await collections.products.findOne({
 		providerProductId: storeProductId,
 		status: "pending",
@@ -103,9 +125,33 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 
 	if (!externalId) {
 		try {
+			// 從 Gelato 獲取產品詳細信息
 			const productData = await getProductFromGelato(storeProductId);
 			externalId = productData.externalId;
 			previewUrl = productData.previewUrl;
+
+			// 如果獲取到 externalId，接著調用 Shopify API 來獲取 handle
+			if (externalId) {
+				const shopifyHandle = await getShopifyProductHandle(externalId);
+				if (shopifyHandle) {
+					// 更新產品資料，存儲 Shopify handle
+					await collections.products.updateOne(
+						{ _id: product._id },
+						{
+							$set: {
+								shopifyProductId: externalId,
+								handle: shopifyHandle,
+								status: "active",
+								images: previewUrl ? [previewUrl] : [],
+								updatedAt: new Date(),
+							},
+						}
+					);
+					console.log(`StoreProductCreated: 產品記錄已更新，Shopify Handle: ${shopifyHandle}`);
+				} else {
+					console.error("無法獲取 Shopify Handle");
+				}
+			}
 		} catch (error: unknown) {
 			if (error instanceof Error) {
 				console.error("在獲取產品詳細信息時出錯：", error.message);
@@ -113,33 +159,46 @@ async function handleStoreProductCreated(event: StoreProductCreatedEvent) {
 				console.error("在獲取產品詳細信息時出錯：未知錯誤");
 			}
 		}
-	}
-
-	const updateData: Record<string, unknown> = {
-		updatedAt: new Date(),
-	};
-
-	if (externalId) {
-		updateData.shopifyProductId = externalId;
-		updateData.status = "active";
 	} else {
-		updateData.status = "creating";
+		// 如果 externalId 存在，直接獲取 Shopify handle
+		try {
+			const shopifyHandle = await getShopifyProductHandle(externalId);
+			if (shopifyHandle) {
+				await collections.products.updateOne(
+					{ _id: product._id },
+					{
+						$set: {
+							handle: shopifyHandle,
+							status: "active",
+							updatedAt: new Date(),
+							images: previewUrl ? [previewUrl] : [],
+						},
+					}
+				);
+				console.log(`StoreProductCreated: 產品記錄已更新，Shopify Handle: ${shopifyHandle}`);
+			} else {
+				console.error("無法獲取 Shopify Handle");
+			}
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				console.error("在獲取 Shopify Handle 時出錯：", error.message);
+			} else {
+				console.error("在獲取 Shopify Handle 時出錯：未知錯誤");
+			}
+		}
 	}
-
-	if (previewUrl) {
-		updateData.images = [previewUrl];
-	}
-
-	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
-
-	console.log(`(StoreProductCreated)產品記錄已更新：${product._id}`);
 }
 
-async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
+/**
+ * 處理產品更新事件
+ * @param event StoreProductUpdatedEvent
+ */
+export async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 	const storeProductId = event.storeProductId;
 	const externalId = event.externalId;
 	const externalPreviewUrl = event.externalPreviewUrl;
 
+	// 查找對應的產品記錄，狀態為 "pending" 或 "creating"
 	const product = await collections.products.findOne({
 		providerProductId: storeProductId,
 		status: { $in: ["pending", "creating"] },
@@ -161,6 +220,25 @@ async function handleStoreProductUpdated(event: StoreProductUpdatedEvent) {
 		updateData.images = [externalPreviewUrl];
 	}
 
+	// 如果 externalId 存在，獲取 Shopify handle
+	if (externalId) {
+		try {
+			const shopifyHandle = await getShopifyProductHandle(externalId);
+			if (shopifyHandle) {
+				updateData.handle = shopifyHandle;
+			} else {
+				console.error("無法獲取 Shopify Handle");
+			}
+		} catch (error: unknown) {
+			if (error instanceof Error) {
+				console.error("在獲取 Shopify Handle 時出錯：", error.message);
+			} else {
+				console.error("在獲取 Shopify Handle 時出錯：未知錯誤");
+			}
+		}
+	}
+
+	// 更新產品資料
 	await collections.products.updateOne({ _id: product._id }, { $set: updateData });
 
 	console.log(`(StoreProductUpdated)產品記錄已更新：${product._id}`);

@@ -5,7 +5,7 @@ import { env } from "$env/dynamic/private";
 import type { Product } from "$lib/types/Product";
 
 const shopifyApiVersion = "2024-01";
-const shopifyBaseUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
+const shopifyBaseUrl = `https://${env.PUBLIC_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
 
 /**
  * 在 Shopify 上創建產品
@@ -73,4 +73,43 @@ export async function deleteProductOnShopify(productId: string) {
 		console.error("刪除 Shopify 產品時出錯：", error.response?.data || error.message);
 		throw error;
 	}
+}
+
+export async function getShopifyProductHandle(productId: string): Promise<string> {
+	const shopifyAdminUrl = `https://${env.PUBLIC_STORE_DOMAIN}/admin/api/2023-07/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
+
+	const query = `
+	  query getProduct($id: ID!) {
+		product(id: $id) {
+		  handle
+		}
+	  }
+	`;
+
+	const variables = {
+		id: `gid://shopify/Product/${productId}`,
+	};
+
+	const response = await axios.post(
+		shopifyAdminUrl,
+		{ query, variables },
+		{
+			headers: {
+				"Content-Type": "application/json",
+				"X-Shopify-Access-Token": accessToken,
+			},
+		}
+	);
+
+	if (response.data.errors) {
+		throw new Error(`Shopify API 錯誤：${response.data.errors[0].message}`);
+	}
+
+	const handle = response.data.data.product.handle;
+	if (!handle) {
+		throw new Error("未能獲取產品的 handle");
+	}
+
+	return handle;
 }
