@@ -6,6 +6,7 @@ import { ObjectId } from "mongodb";
 import { env } from "$env/dynamic/private";
 import { verifyJWT } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
+import { createProductOnShopify } from "$lib/server/shopify";
 import { createProductOnGelato } from "$lib/server/gelato";
 import uploadFileToGCS from "$lib/server/files/uploadFileToGCS"; // 引入上傳函數
 import type { Product, VariantObject } from "$lib/types/Product"; // 移除未使用的類型
@@ -121,6 +122,24 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			vendor: template.vendor || "Gelato",
 		});
 
+		// 準備 Shopify 產品數據
+		const shopifyProductData: Product = {
+			title,
+			body_html: description || "",
+			vendor: template.vendor || "Gelato",
+			product_type: productType,
+			tags: tags.join(", "),
+			images: Object.values(imageUrls).map((url) => ({ src: url })),
+			variants: gelatoVariants.map((variant) => ({
+				price: "0.00", // 根據您的需求設置價格
+				sku: variant.templateVariantId,
+				option1: variant.templateVariantId, // 或其他適當的選項
+			})),
+		};
+
+		// 在 Shopify 創建產品並發布到 Hydrogen 商店
+		const createdShopifyProduct = await createProductOnShopify(shopifyProductData);
+
 		// 創建本地產品記錄
 		const newProduct: Product = {
 			_id: new ObjectId(),
@@ -134,16 +153,18 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			variants: gelatoVariants,
 			tags,
 			categories: categoryIds ? categoryIds.map((id: string) => new ObjectId(id)) : [],
-			status: "pending", // 初始狀態為 pending
+			status: "active", // 因為已經發布
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			providerProductId: providerResponse.id, // Gelato 的 storeProductId
+			shopifyProductId: createdShopifyProduct.id, // Shopify 的 product ID
+			handle: createdShopifyProduct.handle, // Shopify 的產品 handle
 		};
 
 		// 保存產品到資料庫
 		await collections.products.insertOne(newProduct);
 
-		return json({ message: "產品創建請求已提交，正在處理中" }, { status: 202 });
+		return json({ message: "產品創建並發布成功" }, { status: 201 });
 	} catch (error: unknown) {
 		// 使用 unknown 代替 any，並進行類型檢查
 		console.error("創建產品時出錯：", error instanceof Error ? error.message : "未知錯誤");
