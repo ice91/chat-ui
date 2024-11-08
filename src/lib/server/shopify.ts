@@ -5,7 +5,7 @@ import { env } from "$env/dynamic/private";
 import type { Product } from "$lib/types/Product";
 
 const shopifyApiVersion = "2024-01";
-const shopifyBaseUrl = `https://${env.PUBLIC_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
+const shopifyBaseUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
 
 /**
  * 在 Shopify 上創建產品
