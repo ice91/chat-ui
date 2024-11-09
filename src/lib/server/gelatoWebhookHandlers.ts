@@ -10,7 +10,7 @@ import type {
 	StoreProductCreatedEvent,
 	StoreProductUpdatedEvent,
 } from "$lib/types/WebhookEvents";
-import { getShopifyProductHandle } from "$lib/server/shopify";
+import { getShopifyProductHandle, publishProductToHydrogenStore } from "$lib/server/shopify";
 
 /**
  * 處理 Gelato Webhook 事件
@@ -236,6 +236,11 @@ export async function handleStoreProductUpdated(event: StoreProductUpdatedEvent)
 				console.error("在獲取 Shopify Handle 時出錯：未知錯誤");
 			}
 		}
+		const productId = externalId;
+		const productGID = `gid://shopify/Product/${productId}`;
+
+		// 將產品發布到 Hydrogen 商店
+		await publishProductToHydrogenStore(productGID);
 	}
 
 	// 更新產品資料

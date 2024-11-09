@@ -83,7 +83,7 @@ async function getHydrogenPublicationId(): Promise<string> {
  * 將產品發布到 Hydrogen 商店
  * @param productGID 產品的全局 ID（GID）
  */
-async function publishProductToHydrogenStore(productGID: string) {
+export async function publishProductToHydrogenStore(productGID: string) {
 	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
 	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 
@@ -139,38 +139,6 @@ async function publishProductToHydrogenStore(productGID: string) {
 		console.log(`產品已成功發布到 Hydrogen 商店：${productGID}`);
 	} catch (error) {
 		console.error("在發布產品到 Hydrogen 商店時出錯：", error.response?.data || error.message);
-		throw error;
-	}
-}
-
-/**
- * 在 Shopify 上創建產品
- * @param productData 產品數據
- * @returns Shopify 的產品創建回應
- */
-export async function createProductOnShopify(productData: Product) {
-	try {
-		const response = await axios.post(
-			`${shopifyBaseUrl}/products.json`,
-			{ product: productData },
-			{
-				headers: {
-					"Content-Type": "application/json",
-					"X-Shopify-Access-Token": env.SHOPIFY_ACCESS_TOKEN,
-				},
-			}
-		);
-
-		const createdProduct = response.data.product;
-		const productId = createdProduct.id;
-		const productGID = `gid://shopify/Product/${productId}`;
-
-		// 將產品發布到 Hydrogen 商店
-		await publishProductToHydrogenStore(productGID);
-
-		return createdProduct;
-	} catch (error) {
-		console.error("在 Shopify 創建產品時出錯：", error.response?.data || error.message);
 		throw error;
 	}
 }
