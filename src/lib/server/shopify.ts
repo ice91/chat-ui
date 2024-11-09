@@ -14,6 +14,8 @@ let hydrogenPublicationIds: string | null = null;
  * @returns Hydrogen 店面的 publicationIds
  */
 async function getHydrogenPublicationIds(): Promise<string[]> {
+	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 	if (hydrogenPublicationIds) {
 		return hydrogenPublicationIds;
 	}
@@ -33,7 +35,7 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
 
 	try {
 		const response = await axios.post(
-			shopifyBaseUrl,
+			shopifyAdminUrl,
 			{ query },
 			{
 				headers: {
@@ -71,6 +73,8 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
  * @param productGID 產品的全局 ID（GID）
  */
 export async function publishProductToHydrogenStore(productGID: string): Promise<void> {
+	const shopifyAdminUrl = `${shopifyBaseUrl}/graphql.json`;
+	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 	// 獲取 Hydrogen 的所有 publicationIds
 	const hydrogenPublicationIds = await getHydrogenPublicationIds();
 
@@ -97,7 +101,7 @@ export async function publishProductToHydrogenStore(productGID: string): Promise
 
 	try {
 		const response = await axios.post(
-			shopifyBaseUrl,
+			shopifyAdminUrl,
 			{ query: mutation, variables },
 			{
 				headers: {
