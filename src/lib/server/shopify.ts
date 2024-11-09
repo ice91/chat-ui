@@ -7,6 +7,8 @@ import type { Product } from "$lib/types/Product";
 const shopifyApiVersion = "2024-10";
 const shopifyBaseUrl = `https://${env.SHOPIFY_STORE_DOMAIN}/admin/api/${shopifyApiVersion}`;
 
+let hydrogenPublicationIds: string | null = null;
+
 /**
  * 獲取 Hydrogen 店面的所有 publicationIds，並緩存
  * @returns Hydrogen 店面的 publicationIds
@@ -30,7 +32,7 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
 	`;
 
 	try {
-		const response = await axios.post<PublicationsResponse>(
+		const response = await axios.post(
 			shopifyAdminUrl,
 			{ query },
 			{
@@ -94,7 +96,7 @@ export async function publishProductToHydrogenStore(productGID: string): Promise
 	};
 
 	try {
-		const response = await axios.post<ProductPublishResponse>(
+		const response = await axios.post(
 			shopifyAdminUrl,
 			{ query: mutation, variables },
 			{
