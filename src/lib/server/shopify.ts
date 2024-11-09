@@ -33,7 +33,7 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
 
 	try {
 		const response = await axios.post(
-			shopifyAdminUrl,
+			shopifyBaseUrl,
 			{ query },
 			{
 				headers: {
@@ -97,7 +97,7 @@ export async function publishProductToHydrogenStore(productGID: string): Promise
 
 	try {
 		const response = await axios.post(
-			shopifyAdminUrl,
+			shopifyBaseUrl,
 			{ query: mutation, variables },
 			{
 				headers: {
