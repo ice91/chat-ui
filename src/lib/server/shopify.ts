@@ -134,12 +134,12 @@ export async function publishProductToHydrogenStore(productGID: string): Promise
  * @param productData 要更新的產品數據
  * @returns 更新產品的輸入物件
  */
-function buildProductUpdateInput(productData: Product) {
+function buildProductUpdateInput(productId: string, productData: Product) {
 	const input = {
-		id: `gid://shopify/Product/${productData.shopifyProductId}`, // 使用 shopifyProductId 作為 GID
+		id: `gid://shopify/Product/${productId}`, // 使用 productId 作为 GID
 	};
 
-	// 動態添加需要更新的欄位
+	// 动态添加需要更新的字段
 	if (productData.title) {
 		input.title = productData.title;
 	}
@@ -153,7 +153,7 @@ function buildProductUpdateInput(productData: Product) {
 	}
 
 	if (productData.tags) {
-		input.tags = productData.tags.join(", "); // Shopify 的 tags 需要以逗號分隔的字串
+		input.tags = productData.tags.join(", "); // Shopify 的 tags 需要以逗号分隔的字符串
 	}
 
 	return input;
@@ -170,7 +170,7 @@ export async function updateProductOnShopify(productId: string, productData: Pro
 	const accessToken = env.SHOPIFY_ACCESS_TOKEN;
 
 	// 建立只包含需要更新的欄位的輸入物件
-	const input = buildProductUpdateInput(productData);
+	const input = buildProductUpdateInput(productId, productData);
 
 	const mutation = `
       mutation updateProduct($input: ProductInput!) {
