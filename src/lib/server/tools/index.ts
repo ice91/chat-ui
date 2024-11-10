@@ -15,6 +15,7 @@ import JSON5 from "json5";
 import { env } from "$env/dynamic/private";
 
 import jp from "jsonpath";
+import createProductTool from "./createProduct";
 import calculator from "./calculator";
 import directlyAnswer from "./directlyAnswer";
 import fetchUrl from "./web/url";
@@ -127,7 +128,14 @@ export const configTools = z
 			}))
 	)
 	// add the extra hardcoded tools
-	.transform((val) => [...val, calculator, directlyAnswer, fetchUrl, websearch]);
+	.transform((tools) => [
+		...tools,
+		calculator,
+		directlyAnswer,
+		fetchUrl,
+		websearch,
+		createProductTool, // 添加新的創建產品工具
+	]);
 
 export function getCallMethod(tool: Omit<BaseTool, "call">): BackendCall {
 	return async function* (params, ctx, uuid) {
