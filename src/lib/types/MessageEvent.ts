@@ -1,3 +1,5 @@
+// src/lib/types/MessageEvent.ts
+
 import type { Session } from "./Session";
 import type { Timestamps } from "./Timestamps";
 import type { User } from "./User";

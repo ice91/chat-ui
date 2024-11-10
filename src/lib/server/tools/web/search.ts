@@ -1,3 +1,5 @@
+// src/lib/server/tools/web/search.ts
+
 import type { ConfigTool } from "$lib/types/Tool";
 import { ObjectId } from "mongodb";
 import { runWebSearch } from "../../websearch/runWebSearch";

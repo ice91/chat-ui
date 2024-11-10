@@ -1,3 +1,5 @@
+// src/route/api/products/[id]/+server.ts
+
 import type { RequestHandler } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { ObjectId } from "mongodb";

@@ -1,3 +1,5 @@
+// src/lib/server/textGeneration/types.ts
+
 import type { ProcessedModel } from "../models";
 import type { Endpoint } from "../endpoints/endpoints";
 import type { Conversation } from "$lib/types/Conversation";
