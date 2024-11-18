@@ -1,9 +1,14 @@
+// src/lib/types/Tool.ts
+
 import type { ObjectId } from "mongodb";
 import type { User } from "./User";
 import type { Timestamps } from "./Timestamps";
 import type { BackendToolContext } from "$lib/server/tools";
 import type { MessageUpdate } from "./MessageUpdate";
 import { z } from "zod";
+import type { Conversation } from "$lib/types/Conversation";
+import type { Assistant } from "$lib/types/Assistant";
+import type { Message } from "$lib/types/Message";
 
 export const ToolColor = z.union([
 	z.literal("purple"),
@@ -181,3 +186,19 @@ export type BackendCall = (
 	context: BackendToolContext,
 	uuid: string
 ) => AsyncGenerator<MessageUpdate, Omit<ToolResultSuccess, "status" | "call" | "type">, undefined>;
+
+export interface FileMeta {
+	name: string;
+	value: string; // 文件的唯一標識符
+	mime: string;
+	// 其他相關字段
+}
+
+export interface ToolContext {
+	conv: Conversation;
+	assistant?: Pick<Assistant, "rag" | "dynamicPrompt" | "generateSettings" | "tools">;
+	messages: Message[];
+	files: FileMeta[];
+	cookies: Record<string, string>; // 存儲 Cookies，鍵為 Cookie 名稱，值為 Cookie 值
+	// 其他上下文相關字段
+}

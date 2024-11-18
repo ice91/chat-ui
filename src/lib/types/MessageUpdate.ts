@@ -1,3 +1,5 @@
+// src/lib/types/MessageUpdate.ts
+
 import type { WebSearchSource } from "$lib/types/WebSearch";
 import type { ToolCall, ToolResult } from "$lib/types/Tool";
 

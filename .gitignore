@@ -11,4 +11,9 @@ SECRET_CONFIG
 .idea
 !.env.ci
 !.env
+<<<<<<< HEAD
 gcp-*.json
+=======
+gcp-*.json
+even-turbine-437301-h7-a5d90297b741.json
+>>>>>>> product-tools

@@ -6,7 +6,6 @@ import { ObjectId } from "mongodb";
 export const GET: RequestHandler = async ({ locals }) => {
 	const userId = locals.userId;
 
-	console.log("XXX" + userId);
 	if (!userId) {
 		return new Response(JSON.stringify({ error: "未授權" }), { status: 401 });
 	}

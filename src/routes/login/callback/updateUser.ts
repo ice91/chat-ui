@@ -1,3 +1,5 @@
+// src/routes/login/callback/updateUser.ts
+
 import { refreshSessionCookie } from "$lib/server/auth";
 import { collections } from "$lib/server/database";
 import { ObjectId } from "mongodb";
@@ -22,15 +24,8 @@ export async function updateUser(params: {
 }) {
 	const { userData, locals, cookies, userAgent, ip } = params;
 
-	// 使用提供者提供的用戶數據進行解析
-	const {
-		username,
-		name,
-		email,
-		picture: avatarUrl,
-		sub: hfUserId,
-		orgs,
-	} = z
+	// 使用提供者提供的用户数据进行解析
+	const { username, name, email, avatarUrl, hfUserId, orgs } = z
 		.object({
 			preferred_username: z.string().optional(),
 			name: z.string(),
@@ -57,15 +52,17 @@ export async function updateUser(params: {
 			...data,
 			username: data.preferred_username || data.email || data.name,
 			name: data[OIDConfig.NAME_CLAIM],
+			avatarUrl: data.picture || "",
+			hfUserId: data.sub,
 		}))
 		.parse(userData);
 
-	// 檢查是否具有管理員和早期訪問權限
+	// 检查是否具有管理员和早期访问权限
 	const isAdmin = (env.HF_ORG_ADMIN && orgs?.some((org) => org.sub === env.HF_ORG_ADMIN)) || false;
 	const isEarlyAccess =
 		(env.HF_ORG_EARLY_ACCESS && orgs?.some((org) => org.sub === env.HF_ORG_EARLY_ACCESS)) || false;
 
-	// 記錄登錄行為
+	// 记录登录行为
 	logger.info(
 		{
 			login_username: username,
@@ -76,7 +73,7 @@ export async function updateUser(params: {
 		"user login"
 	);
 
-	// 查找現有的用戶
+	// 查找现有的用户
 	const existingUser = await collections.users.findOne({ hfUserId });
 	let userId = existingUser?._id;
 
@@ -91,7 +88,7 @@ export async function updateUser(params: {
 
 	locals.sessionId = sessionId;
 
-	// 準備更新的用戶字段
+	// 准备更新的用户字段
 	let updateFields: Partial<User> = {
 		username,
 		name,
@@ -102,19 +99,19 @@ export async function updateUser(params: {
 	};
 
 	if (!existingUser) {
-		// 新用戶創建
+		// 新用户创建
 		updateFields = {
 			...updateFields,
 			email,
 			hfUserId,
-			points: 0, // 初始積分
-			subscriptionStatus: "inactive", // 初始訂閱狀態
+			points: 0, // 初始积分
+			subscriptionStatus: "inactive", // 初始订阅状态
 			subscriptionPlan: null,
 			subscriptionExpiry: null,
-			referralCode: null, // 如果需要推薦碼
+			referralCode: null, // 如果需要推荐码
 		};
 
-		// 創建新用戶
+		// 创建新用户
 		const { insertedId } = await collections.users.insertOne({
 			_id: new ObjectId(),
 			createdAt: new Date(),
@@ -123,7 +120,7 @@ export async function updateUser(params: {
 
 		userId = insertedId;
 
-		// 創建新會話
+		// 创建新会话
 		await collections.sessions.insertOne({
 			_id: new ObjectId(),
 			sessionId: locals.sessionId,
@@ -135,7 +132,7 @@ export async function updateUser(params: {
 			expiresAt: addWeeks(new Date(), 2),
 		});
 
-		// 遷移設置
+		// 迁移设置
 		const { matchedCount } = await collections.settings.updateOne(
 			{ sessionId: previousSessionId },
 			{
@@ -144,7 +141,7 @@ export async function updateUser(params: {
 			}
 		);
 
-		// 如果沒有預設設置，則創建默認設置
+		// 如果没有预设设置，则创建默认设置
 		if (!matchedCount) {
 			await collections.settings.insertOne({
 				userId: insertedId,
@@ -155,12 +152,12 @@ export async function updateUser(params: {
 			});
 		}
 	} else {
-		// 更新現有用戶
+		// 更新现有用户
 		const newStripeCustomerId: string | undefined = existingUser.stripeCustomerId;
 
 		updateFields = {
 			...updateFields,
-			points: existingUser.points, // 保留現有積分
+			points: existingUser.points, // 保留现有积分
 			subscriptionStatus: existingUser.subscriptionStatus,
 			subscriptionPlan: existingUser.subscriptionPlan,
 			subscriptionExpiry: existingUser.subscriptionExpiry,
@@ -168,14 +165,14 @@ export async function updateUser(params: {
 
 		const updateOperation: { $set: Partial<User> } = { $set: updateFields };
 
-		// 如果有新的 stripeCustomerId，則設置它
+		// 如果有新的 stripeCustomerId，则设置它
 		if (newStripeCustomerId) {
 			updateOperation.$set.stripeCustomerId = newStripeCustomerId;
 		}
 
 		await collections.users.updateOne({ _id: existingUser._id }, updateOperation);
 
-		// 刪除之前的會話，插入新會話
+		// 删除之前的会话，插入新会话
 		await collections.sessions.deleteOne({ sessionId: previousSessionId });
 		await collections.sessions.insertOne({
 			_id: new ObjectId(),
@@ -189,10 +186,10 @@ export async function updateUser(params: {
 		});
 	}
 
-	// 刷新會話 cookie
+	// 刷新会话 cookie
 	refreshSessionCookie(cookies, secretSessionId);
 
-	// 遷移之前的對話
+	// 迁移之前的对话
 	await collections.conversations.updateMany(
 		{ sessionId: previousSessionId },
 		{

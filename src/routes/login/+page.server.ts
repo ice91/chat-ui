@@ -1,3 +1,5 @@
+// src/routes/login/+page.server.ts
+
 import { redirect } from "@sveltejs/kit";
 import { getOIDCAuthorizationUrl } from "$lib/server/auth";
 import { base } from "$app/paths";
@@ -22,6 +24,6 @@ export const actions = {
 			{ sessionId: locals.sessionId }
 		);
 
-		redirect(303, authorizationUrl);
+		throw redirect(303, authorizationUrl);
 	},
 };

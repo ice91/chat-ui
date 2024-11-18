@@ -1,3 +1,5 @@
+//src/lib/types/User.ts
+
 import type { ObjectId } from "mongodb";
 import type { Timestamps } from "./Timestamps";
 
@@ -17,4 +19,5 @@ export interface User extends Timestamps {
 	hfUserId: string;
 	isAdmin?: boolean;
 	isEarlyAccess?: boolean;
+	roles?: string[]; // 新增欄位
 }

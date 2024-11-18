@@ -1,3 +1,5 @@
+// src/lib/types/Message.ts
+
 import type { MessageUpdate } from "./MessageUpdate";
 import type { Timestamps } from "./Timestamps";
 import type { WebSearch } from "./WebSearch";

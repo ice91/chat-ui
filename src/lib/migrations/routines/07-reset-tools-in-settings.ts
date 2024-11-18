@@ -14,5 +14,4 @@ const resetTools: Migration = {
 	},
 	runEveryTime: false,
 };
-
 export default resetTools;
