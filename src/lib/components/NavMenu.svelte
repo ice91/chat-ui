@@ -26,16 +26,16 @@
         new Date().setMonth(new Date().getMonth() - 1),
     ];
 
-    $: groupedConversations = {
-        today: conversations.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
-        week: conversations.filter(
-            ({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
-        ),
-        month: conversations.filter(
-            ({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
-        ),
-        older: conversations.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
-    };
+    $: groupedConversations = conversations.then((convs) => ({
+		today: convs.filter(({ updatedAt }) => updatedAt.getTime() > dateRanges[0]),
+		week: convs.filter(
+			({ updatedAt }) => updatedAt.getTime() > dateRanges[1] && updatedAt.getTime() < dateRanges[0]
+		),
+		month: convs.filter(
+			({ updatedAt }) => updatedAt.getTime() > dateRanges[2] && updatedAt.getTime() < dateRanges[1]
+		),
+		older: convs.filter(({ updatedAt }) => updatedAt.getTime() < dateRanges[2]),
+	}));
 
     const titles: { [key: string]: string } = {
         today: "Today",

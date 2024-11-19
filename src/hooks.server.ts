@@ -20,6 +20,9 @@ import { refreshConversationStats } from "$lib/jobs/refresh-conversation-stats";
 
 // TODO: move this code on a started server hook, instead of using a "building" flag
 if (!building) {
+	// Set HF_TOKEN as a process variable for Transformers.JS to see it
+	process.env.HF_TOKEN ??= env.HF_TOKEN;
+
 	logger.info("Starting server...");
 	initExitHandler();
 
@@ -328,6 +331,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		!event.url.pathname.startsWith(`${base}/api/gelato/webhooks`) && // 排除 webhook 路径
 		!event.url.pathname.startsWith(`${base}/api/product`) && // 排除 product 路径
 		!event.url.pathname.startsWith(`${base}/api/auth/seller/logout`) && // 排除登出路由
+		!event.url.pathname.startsWith(`${base}/settings`) &&
 		!["GET", "OPTIONS", "HEAD"].includes(event.request.method)
 	) {
 		if (
@@ -408,6 +412,9 @@ function addCorsHeaders(
 	if (isAllowedOrigin && origin) {
 		response.headers.set("Access-Control-Allow-Origin", origin);
 		response.headers.set("Access-Control-Allow-Credentials", "true");
+	}
+	if (env.ALLOW_IFRAME !== "true") {
+		response.headers.append("Content-Security-Policy", "frame-ancestors 'none';");
 	}
 	return response;
 }
