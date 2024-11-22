@@ -8,12 +8,11 @@ import { downloadFile } from "../files/downloadFile";
 
 // 定義輸入參數的類型
 interface CreateProductParams {
-	templateId: string;
 	title?: string;
 	description?: string;
 	tags?: string;
 	categoryIds?: string;
-	imagePlaceholders: string; // JSON 格式的字符串，例如：{"front": {"fileMessageIndex": 1, "fileIndex": 0}}
+	imagePlaceholders: string; // JSON 格式的字符串，例如：{"Image 4": {"fileMessageIndex": 1, "fileIndex": 0}}
 }
 
 // 定義後端 API 返回的響應類型
@@ -26,19 +25,13 @@ const createProductTool: ConfigTool = {
 	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
-		"創建一個新產品。請選擇模板並提供產品信息，以及對話中圖片的位置。如果未提供某些字段，將使用模板的默認值。",
+		"創建一個新的鋁製打印產品（Aluminum Print）。請提供產品信息，以及對話中圖片的位置。如果未提供某些字段，將使用默認值。",
 	color: "green",
 	icon: "tools",
-	displayName: "Create Product",
-	name: "create_product",
+	displayName: "創建鋁製打印產品",
+	name: "create_aluminum_print_product",
 	endpoint: null,
 	inputs: [
-		{
-			name: "templateId",
-			type: "str",
-			description: "要使用的產品模板 ID",
-			paramType: "required",
-		},
 		{
 			name: "title",
 			type: "str",
@@ -67,7 +60,7 @@ const createProductTool: ConfigTool = {
 			name: "imagePlaceholders",
 			type: "json",
 			description:
-				'圖片佔位符與文件位置的對應關係，JSON 格式，例如：{"front": {"fileMessageIndex": 1, "fileIndex": 0}}',
+				'圖片佔位符與文件位置的對應關係，JSON 格式，例如：{"Image 4": {"fileMessageIndex": 1, "fileIndex": 0}}',
 			paramType: "required",
 		},
 	],
@@ -75,23 +68,26 @@ const createProductTool: ConfigTool = {
 	outputComponentIdx: null,
 	showOutput: true,
 	async *call(
-		{ templateId, title, description, tags, categoryIds, imagePlaceholders }: CreateProductParams,
+		{ title, description, tags, categoryIds, imagePlaceholders }: CreateProductParams,
 		{ conv, messages, cookies }: ToolContext
 	) {
 		try {
-			// 1. 從 Cookies 中取得 JWT Token
+			// 1. 固定的模板 ID，對應 Aluminum Print
+			const templateId = "fadf6eb1-a041-4837-bc05-585745ade6ea";
+
+			// 2. 從 Cookies 中取得 JWT Token
 			const COOKIE_NAME = env.COOKIE_NAME; // 從環境變量取得 Cookie 名稱
 			const authToken = cookies[COOKIE_NAME];
 			if (!authToken) {
 				throw new Error("未找到身份驗證令牌，請確保已登入。");
 			}
 
-			// 2. 構建 Headers，手動添加 Cookie
+			// 3. 構建 Headers，手動添加 Cookie
 			const headers = {
 				Cookie: `${COOKIE_NAME}=${authToken}`,
 			};
 
-			// 3. 獲取模板數據
+			// 4. 獲取模板數據
 			const templateResponse = await axios.get(
 				`${env.BACKEND_API_URL}/api/templates/${templateId}`,
 				{
@@ -105,45 +101,54 @@ const createProductTool: ConfigTool = {
 
 			const templateData = templateResponse.data.template;
 
-			// 4. 填充默認值
+			// 5. 填充默認值
 			const finalTitle = title || templateData.title;
 			const finalDescription = description || templateData.description;
-			const finalTags = tags || (templateData.tags || []).join(", ");
-			const finalCategoryIds = categoryIds || (templateData.categories || []).join(", ");
+			const finalTags = tags || templateData.tags;
+			const finalCategoryIds = categoryIds || templateData.categoryIds;
 
-			// 5. 解析 imagePlaceholders 參數
+			// 6. 確定需要的圖片佔位符名稱
+			const placeholderNames = ["Image 3"]; // 對於這個模板，我們需要的圖片佔位符名稱
+
+			// 7. 解析 imagePlaceholders 參數
 			const imageMappings: Record<string, { fileMessageIndex: number; fileIndex: number }> =
 				JSON.parse(imagePlaceholders);
-			// 例如：{ "front": { "fileMessageIndex": 1, "fileIndex": 0 }, "back": { "fileMessageIndex": 2, "fileIndex": 1 } }
+			// 例如：{ "Image 4": { "fileMessageIndex": 1, "fileIndex": 0 } }
 
-			// 6. 獲取所有需要的圖片佔位符名稱
-			const imagePlaceholdersList = templateData.variants.flatMap(
-				(variant: Record<string, unknown>) =>
-					(variant.imagePlaceholders as Array<{ name: string }>) ?? []
-			);
-			const placeholderNames = [...new Set(imagePlaceholdersList.map((p) => p.name))];
-
-			// 7. 檢查是否所有佔位符都有對應的文件
+			// 8. 檢查是否所有佔位符都有對應的文件
 			for (const placeholderName of placeholderNames) {
 				if (!imageMappings[placeholderName]) {
 					throw new Error(`缺少佔位符 "${placeholderName}" 的圖片文件位置。`);
 				}
 			}
 
-			// 8. 處理圖片上傳
+			// 9. 處理圖片上傳
 			const formData = new FormData();
 			formData.append("templateId", templateId);
 			formData.append("title", finalTitle);
 			formData.append("description", finalDescription);
-			formData.append("tags", JSON.stringify(finalTags.split(",").map((tag) => tag.trim())));
+			formData.append(
+				"tags",
+				JSON.stringify(
+					finalTags
+						.split(",")
+						.map((tag) => tag.trim())
+						.filter((tag) => tag !== "")
+				)
+			);
 			formData.append(
 				"categoryIds",
-				JSON.stringify(finalCategoryIds.split(",").map((id) => id.trim()))
+				JSON.stringify(
+					finalCategoryIds
+						.split(",")
+						.map((id) => id.trim())
+						.filter((id) => id !== "")
+				)
 			);
 
-			for (const [placeholderName, { fileMessageIndex, fileIndex }] of Object.entries(
-				imageMappings
-			)) {
+			for (const placeholderName of placeholderNames) {
+				const { fileMessageIndex, fileIndex } = imageMappings[placeholderName];
+
 				const message = messages[fileMessageIndex];
 				if (!message) {
 					throw new Error(`未找到消息，索引：${fileMessageIndex}`);
@@ -171,7 +176,7 @@ const createProductTool: ConfigTool = {
 				);
 			}
 
-			// 9. 調用後端 API 創建產品
+			// 10. 調用後端 API 創建產品
 			const response = await axios.post(`${env.BACKEND_API_URL}/api/products`, formData, {
 				headers: {
 					...headers,
@@ -185,7 +190,7 @@ const createProductTool: ConfigTool = {
 
 			const result: CreateProductResponse = response.data;
 
-			// 10. 返回結果給用戶
+			// 11. 返回結果給用戶
 			yield {
 				outputs: [
 					{
