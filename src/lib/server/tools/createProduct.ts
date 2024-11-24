@@ -19,19 +19,13 @@ const createProductTool: ConfigTool = {
 	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
-		"使用對話中的圖片，根據指定的模板 ID，在 Gelato 平臺上創建產品，並將產品資訊記錄到本地資料庫。只需提供模板 ID、圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
+		"使用對話中的圖片，根據指定的模板 ID，在 Gelato 平臺上創建產品，並將產品資訊記錄到本地資料庫。只需提供圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
 	color: "green",
 	icon: "tools",
 	displayName: "創建產品",
 	name: "create_product",
 	endpoint: null,
 	inputs: [
-		{
-			name: "templateId",
-			type: "str",
-			description: "產品模板的 ID",
-			paramType: "required",
-		},
 		{
 			name: "fileMessageIndex",
 			type: "number",
@@ -73,6 +67,7 @@ const createProductTool: ConfigTool = {
 			if (!template) {
 				throw new Error(`未找到模板，模板 ID：${templateId}`);
 			}
+			console.log(template);
 
 			// 4. 處理對話中的圖片文件
 			const message = messages[fileMessageIndex];
@@ -155,7 +150,7 @@ const createProductTool: ConfigTool = {
 				variants: productData.variants,
 				tags: productData.tags,
 				categories: template.categories || [],
-				status: "active",
+				status: "pending", // 初始狀態為 pending,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 				providerProductId: gelatoProductId,
@@ -167,7 +162,7 @@ const createProductTool: ConfigTool = {
 			yield {
 				outputs: [
 					{
-						create_product: `產品已成功創建，產品 ID：${gelatoProductId}`,
+						create_product: `產品創建請求已提交，正在處理中 ID：${gelatoProductId}`,
 					},
 				],
 				display: true,
