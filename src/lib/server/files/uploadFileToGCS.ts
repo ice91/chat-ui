@@ -17,7 +17,7 @@ const bucketName = env.GCS_BUCKET_NAME; // 從 .env 中讀取 bucket 名稱
  * @param sellerId - 賣家 ID，用於區分不同賣家的文件
  * @returns 文件的公共 URL
  */
-async function uploadFileToGCS(file: File, sellerId: string): Promise<string> {
+export async function uploadFileToGCS(file: File, sellerId: string): Promise<string> {
 	const sha = await sha256(await file.text());
 	const buffer = await file.arrayBuffer();
 	const fileName = `${sellerId}/${new ObjectId().toString()}-${sha}`; // 基於賣家ID和唯一ID構建文件名
