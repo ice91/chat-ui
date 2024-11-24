@@ -2,12 +2,13 @@
 
 import type { ConfigTool, ToolContext } from "$lib/types/Tool";
 import { ObjectId } from "mongodb";
-import axios from "axios";
+//import axios from "axios";
 import { downloadFile } from "../files/downloadFile";
 import { uploadFileToGCS } from "../files/uploadFileToGCS";
 import { collections } from "$lib/server/database";
 import { env } from "$env/dynamic/private";
-import type { VariantObject, ImagePlaceholderObject } from "$lib/types/ProductTemplate";
+import type { VariantObject } from "$lib/types/ProductTemplate";
+import { createProductOnGelato } from "$lib/server/gelato";
 
 interface CreateProductParams {
 	templateId: string;
@@ -95,15 +96,87 @@ const createProductTool: ConfigTool = {
 			const imageFile = new File([blob], file.name, { type: file.mime });
 
 			// 上傳文件到 GCS，獲取公開的 URL
-			const imageUrl = await uploadFileToGCS(imageFile);
+			const GCSimageUrl = await uploadFileToGCS(imageFile);
 
+			//\\\\\\\\\\
+			// 檢查是否所有佔位符都有對應的圖片
+			for (const variant of template.variants) {
+				for (const placeholder of variant.imagePlaceholders) {
+					if (!imageFiles[placeholder.name]) {
+						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+					}
+				}
+			}
+
+			// 將圖片上傳並獲取 URL
+			const imageUrls: Record<string, string> = {};
+			for (const placeholderName in imageFiles) {
+				//const file = imageFiles[placeholderName];
+				//const imageUrl = await uploadFileToGCS(file, sellerId);
+				console.log(`上傳圖片佔位符 "${placeholderName}"，獲取的 URL：${GCSimageUrl}`);
+				imageUrls[placeholderName] = GCSimageUrl;
+			}
+
+			// 準備 Gelato API 的變體資料
+			const gelatoVariants: VariantObject[] = template.variants.map((variant) => ({
+				templateVariantId: variant.id,
+				imagePlaceholders: variant.imagePlaceholders.map((placeholder) => {
+					const fileUrl = imageUrls[placeholder.name];
+					if (!fileUrl) {
+						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+					}
+					return {
+						name: placeholder.name,
+						fileUrl,
+					};
+				}),
+				// 如果需要，添加 textPlaceholders
+			}));
+
+			console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
+
+			// 在 Gelato 上創建產品
+			const providerResponse = await createProductOnGelato({
+				templateId,
+				title,
+				description,
+				isVisibleInTheOnlineStore: true,
+				salesChannels: ["global"],
+				tags,
+				variants: gelatoVariants,
+				productType,
+				vendor: template.vendor || "Gelato",
+			});
+
+			// 創建本地產品記錄
+			const newProduct: Product = {
+				_id: new ObjectId(),
+				userId: new ObjectId(sellerId),
+				title,
+				description: description || "",
+				images: Object.values(imageUrls),
+				provider: "Gelato",
+				productType,
+				templateId,
+				variants: gelatoVariants,
+				tags,
+				categories: categoryIds ? categoryIds.map((id: string) => new ObjectId(id)) : [],
+				status: "pending", // 初始狀態為 pending
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				providerProductId: providerResponse.id, // Gelato 的 storeProductId
+			};
+
+			// 保存產品到資料庫
+			await collections.products.insertOne(newProduct);
+			//\\\\\\\\\\
 			// 6. 構建 Gelato API 請求資料
-			const productData = {
+			/*const productData = {
 				templateId: template.templateId,
 				title: template.title || "Custom Product",
 				description: template.description || "A custom product created using your image.",
 				isVisibleInTheOnlineStore: true,
-				salesChannels: ["web"],
+				salesChannels: ["global"],
 				tags: template.tags || [],
 				variants: template.variants.map((variant: VariantObject) => ({
 					templateVariantId: variant.id,
@@ -156,13 +229,13 @@ const createProductTool: ConfigTool = {
 				providerProductId: gelatoProductId,
 			};
 
-			await collections.products.insertOne(newProduct);
+			await collections.products.insertOne(newProduct);*/
 
 			// 9. 返回結果給使用者
 			yield {
 				outputs: [
 					{
-						create_product: `產品創建請求已提交，正在處理中 ID：${gelatoProductId}`,
+						create_product: `產品創建請求已提交，正在處理中`,
 					},
 				],
 				display: true,
