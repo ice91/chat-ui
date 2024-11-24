@@ -5,14 +5,12 @@ import { ObjectId } from "mongodb";
 import { env } from "$env/dynamic/private";
 import axios from "axios";
 import { downloadFile } from "../files/downloadFile";
+import type { ImagePlaceholderObject, VariantObject } from "$lib/types//ProductTemplate"; // 引用 ProductTemplate 中的 VariantObject
 
 // 定義輸入參數的類型
 interface CreateProductParams {
-	title?: string;
-	description?: string;
-	tags?: string;
-	categoryIds?: string;
-	imagePlaceholders: string; // JSON 格式的字符串，例如：{"Image 4": {"fileMessageIndex": 1, "fileIndex": 0}}
+	fileMessageIndex: number;
+	fileIndex: number;
 }
 
 // 定義後端 API 返回的響應類型
@@ -25,7 +23,7 @@ const createProductTool: ConfigTool = {
 	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
-		"創建一個新的鋁製打印產品（Aluminum Print）。請提供產品信息，以及對話中圖片的位置。如果未提供某些字段，將使用默認值。",
+		"創建一個新的鋁製打印產品（Aluminum Print）。只需提供圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
 	color: "green",
 	icon: "tools",
 	displayName: "創建鋁製打印產品",
@@ -33,34 +31,15 @@ const createProductTool: ConfigTool = {
 	endpoint: null,
 	inputs: [
 		{
-			name: "title",
-			type: "str",
-			description: "產品標題",
-			paramType: "optional",
+			name: "fileMessageIndex",
+			type: "number",
+			description: "包含圖片的消息索引",
+			paramType: "required",
 		},
 		{
-			name: "description",
-			type: "str",
-			description: "產品描述",
-			paramType: "optional",
-		},
-		{
-			name: "tags",
-			type: "str",
-			description: "產品標籤，用逗號分隔",
-			paramType: "optional",
-		},
-		{
-			name: "categoryIds",
-			type: "str",
-			description: "產品類別 ID，用逗號分隔",
-			paramType: "optional",
-		},
-		{
-			name: "imagePlaceholders",
-			type: "json",
-			description:
-				'圖片佔位符與文件位置的對應關係，JSON 格式，例如：{"Image 4": {"fileMessageIndex": 1, "fileIndex": 0}}',
+			name: "fileIndex",
+			type: "number",
+			description: "圖片文件在消息中的索引",
 			paramType: "required",
 		},
 	],
@@ -68,7 +47,7 @@ const createProductTool: ConfigTool = {
 	outputComponentIdx: null,
 	showOutput: true,
 	async *call(
-		{ title, description, tags, categoryIds, imagePlaceholders }: CreateProductParams,
+		{ fileMessageIndex, fileIndex }: CreateProductParams,
 		{ conv, messages, cookies }: ToolContext
 	) {
 		try {
@@ -102,27 +81,39 @@ const createProductTool: ConfigTool = {
 			const templateData = templateResponse.data.template;
 
 			// 5. 填充默認值
-			const finalTitle = title || templateData.title;
-			const finalDescription = description || templateData.description;
-			const finalTags = tags || templateData.tags;
-			const finalCategoryIds = categoryIds || templateData.categoryIds;
+			const finalTitle = templateData.title || "Custom Aluminum Print";
+			const finalDescription =
+				templateData.description || "A custom Aluminum Print created using your image.";
+			const finalTags = (templateData.tags || []).join(", ") || "custom,aluminum print,image";
 
-			// 6. 確定需要的圖片佔位符名稱
-			const placeholderNames = ["Image 3"]; // 對於這個模板，我們需要的圖片佔位符名稱
+			// 6. 獲取圖片佔位符名稱
+			const placeholderNames = templateData.variants.flatMap((variant: VariantObject) =>
+				variant.imagePlaceholders.map((p: ImagePlaceholderObject) => p.name)
+			);
 
-			// 7. 解析 imagePlaceholders 參數
-			const imageMappings: Record<string, { fileMessageIndex: number; fileIndex: number }> =
-				JSON.parse(imagePlaceholders);
-			// 例如：{ "Image 4": { "fileMessageIndex": 1, "fileIndex": 0 } }
-
-			// 8. 檢查是否所有佔位符都有對應的文件
-			for (const placeholderName of placeholderNames) {
-				if (!imageMappings[placeholderName]) {
-					throw new Error(`缺少佔位符 "${placeholderName}" 的圖片文件位置。`);
-				}
+			if (placeholderNames.length === 0) {
+				throw new Error("模板中未找到任何圖片佔位符。");
 			}
 
-			// 9. 處理圖片上傳
+			const placeholderName = placeholderNames[0]; // 假設只有一個佔位符
+
+			// 7. 處理圖片文件
+			const message = messages[fileMessageIndex];
+			if (!message) {
+				throw new Error(`未找到消息，索引：${fileMessageIndex}`);
+			}
+
+			const files = message.files || [];
+			if (fileIndex >= files.length) {
+				throw new Error(`文件索引超出範圍：${fileIndex}`);
+			}
+
+			const file = files[fileIndex];
+			if (!file.mime.startsWith("image/")) {
+				throw new Error(`文件不是圖片類型：${file.name}`);
+			}
+
+			// 8. 構建 FormData
 			const formData = new FormData();
 			formData.append("templateId", templateId);
 			formData.append("title", finalTitle);
@@ -136,47 +127,19 @@ const createProductTool: ConfigTool = {
 						.filter((tag) => tag !== "")
 				)
 			);
+
+			// 下載文件 Blob
+			const fileData = await downloadFile(file.value, conv._id)
+				.then((data) => fetch(`data:${file.mime};base64,${data.value}`))
+				.then((res) => res.blob());
+
+			// 將文件添加到 FormData 中
 			formData.append(
-				"categoryIds",
-				JSON.stringify(
-					finalCategoryIds
-						.split(",")
-						.map((id) => id.trim())
-						.filter((id) => id !== "")
-				)
+				`images[${placeholderName}]`,
+				new File([fileData], file.name, { type: file.mime })
 			);
 
-			for (const placeholderName of placeholderNames) {
-				const { fileMessageIndex, fileIndex } = imageMappings[placeholderName];
-
-				const message = messages[fileMessageIndex];
-				if (!message) {
-					throw new Error(`未找到消息，索引：${fileMessageIndex}`);
-				}
-
-				const files = message.files || [];
-				if (fileIndex >= files.length) {
-					throw new Error(`文件索引超出範圍：${fileIndex}`);
-				}
-
-				const file = files[fileIndex];
-				if (!file.mime.startsWith("image/")) {
-					throw new Error(`文件不是圖片類型：${file.name}`);
-				}
-
-				// 下載文件 Blob
-				const fileData = await downloadFile(file.value, conv._id)
-					.then((data) => fetch(`data:${file.mime};base64,${data.value}`))
-					.then((res) => res.blob());
-
-				// 將文件添加到 FormData 中
-				formData.append(
-					`images[${placeholderName}]`,
-					new File([fileData], file.name, { type: file.mime })
-				);
-			}
-
-			// 10. 調用後端 API 創建產品
+			// 9. 調用後端 API 創建產品
 			const response = await axios.post(`${env.BACKEND_API_URL}/api/products`, formData, {
 				headers: {
 					...headers,
@@ -190,7 +153,7 @@ const createProductTool: ConfigTool = {
 
 			const result: CreateProductResponse = response.data;
 
-			// 11. 返回結果給用戶
+			// 10. 返回結果給用戶
 			yield {
 				outputs: [
 					{
