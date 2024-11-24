@@ -2,34 +2,36 @@
 
 import type { ConfigTool, ToolContext } from "$lib/types/Tool";
 import { ObjectId } from "mongodb";
-import { env } from "$env/dynamic/private";
 import axios from "axios";
 import { downloadFile } from "../files/downloadFile";
-import type { ImagePlaceholderObject, VariantObject } from "$lib/types//ProductTemplate"; // 引用 ProductTemplate 中的 VariantObject
+import { uploadFileToGCS } from "../files/uploadFileToGCS";
+import { collections } from "$lib/server/database";
+import { env } from "$env/dynamic/private";
+import type { VariantObject, ImagePlaceholderObject } from "$lib/types/ProductTemplate";
 
-// 定義輸入參數的類型
 interface CreateProductParams {
+	templateId: string;
 	fileMessageIndex: number;
 	fileIndex: number;
-}
-
-// 定義後端 API 返回的響應類型
-interface CreateProductResponse {
-	message: string; // 根據後端返回的結構，這裡假設是 message
-	productId?: string; // 可能包含產品 ID
 }
 
 const createProductTool: ConfigTool = {
 	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
-		"創建一個新的鋁製打印產品（Aluminum Print）。只需提供圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
+		"使用對話中的圖片，根據指定的模板 ID，在 Gelato 平臺上創建產品，並將產品資訊記錄到本地資料庫。只需提供模板 ID、圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
 	color: "green",
 	icon: "tools",
-	displayName: "創建鋁製打印產品",
-	name: "create_aluminum_print_product",
+	displayName: "創建產品",
+	name: "create_product",
 	endpoint: null,
 	inputs: [
+		{
+			name: "templateId",
+			type: "str",
+			description: "產品模板的 ID",
+			paramType: "required",
+		},
 		{
 			name: "fileMessageIndex",
 			type: "number",
@@ -48,56 +50,31 @@ const createProductTool: ConfigTool = {
 	showOutput: true,
 	async *call(
 		{ fileMessageIndex, fileIndex }: CreateProductParams,
-		{ conv, messages, cookies }: ToolContext
+		{ conv, messages }: ToolContext
 	) {
 		try {
-			// 1. 固定的模板 ID，對應 Aluminum Print
+			// 0. 固定的模板 ID，對應 Aluminum Print
 			const templateId = "fadf6eb1-a041-4837-bc05-585745ade6ea";
-
-			// 2. 從 Cookies 中取得 JWT Token
-			const COOKIE_NAME = env.COOKIE_NAME; // 從環境變量取得 Cookie 名稱
-			const authToken = cookies[COOKIE_NAME];
-			if (!authToken) {
-				throw new Error("未找到身份驗證令牌，請確保已登入。");
+			// 1. 從環境變數中獲取 Gelato API 配置
+			const apiKey = env.GELATO_API_KEY;
+			const storeId = env.GELATO_STORE_ID;
+			if (!apiKey || !storeId) {
+				throw new Error("未配置 Gelato API 密鑰或商店 ID");
 			}
 
-			// 3. 構建 Headers，手動添加 Cookie
-			const headers = {
-				Cookie: `${COOKIE_NAME}=${authToken}`,
-			};
-
-			// 4. 獲取模板數據
-			const templateResponse = await axios.get(
-				`${env.BACKEND_API_URL}/api/templates/${templateId}`,
-				{
-					headers,
-				}
-			);
-
-			if (!templateResponse.data.template) {
-				throw new Error(`模板未找到：${templateId}`);
+			// 2. 獲取使用者 ID
+			const userId = conv.userId;
+			if (!userId) {
+				throw new Error("未找到使用者 ID");
 			}
 
-			const templateData = templateResponse.data.template;
-
-			// 5. 填充默認值
-			const finalTitle = templateData.title || "Custom Aluminum Print";
-			const finalDescription =
-				templateData.description || "A custom Aluminum Print created using your image.";
-			const finalTags = (templateData.tags || []).join(", ") || "custom,aluminum print,image";
-
-			// 6. 獲取圖片佔位符名稱
-			const placeholderNames = templateData.variants.flatMap((variant: VariantObject) =>
-				variant.imagePlaceholders.map((p: ImagePlaceholderObject) => p.name)
-			);
-
-			if (placeholderNames.length === 0) {
-				throw new Error("模板中未找到任何圖片佔位符。");
+			// 3. 從 MongoDB 中取得模板資訊
+			const template = await collections.productTemplates.findOne({ templateId });
+			if (!template) {
+				throw new Error(`未找到模板，模板 ID：${templateId}`);
 			}
 
-			const placeholderName = placeholderNames[0]; // 假設只有一個佔位符
-
-			// 7. 處理圖片文件
+			// 4. 處理對話中的圖片文件
 			const message = messages[fileMessageIndex];
 			if (!message) {
 				throw new Error(`未找到消息，索引：${fileMessageIndex}`);
@@ -113,53 +90,84 @@ const createProductTool: ConfigTool = {
 				throw new Error(`文件不是圖片類型：${file.name}`);
 			}
 
-			// 8. 構建 FormData
-			const formData = new FormData();
-			formData.append("templateId", templateId);
-			formData.append("title", finalTitle);
-			formData.append("description", finalDescription);
-			formData.append(
-				"tags",
-				JSON.stringify(
-					finalTags
-						.split(",")
-						.map((tag) => tag.trim())
-						.filter((tag) => tag !== "")
-				)
+			// 5. 下載並上傳圖片，獲取 URL
+			const fileData = await downloadFile(file.value, conv._id).then((data) =>
+				Buffer.from(data.value, "base64")
 			);
 
-			// 下載文件 Blob
-			const fileData = await downloadFile(file.value, conv._id)
-				.then((data) => fetch(`data:${file.mime};base64,${data.value}`))
-				.then((res) => res.blob());
+			// 創建 Blob 對象
+			const blob = new Blob([fileData], { type: file.mime });
+			const imageFile = new File([blob], file.name, { type: file.mime });
 
-			// 將文件添加到 FormData 中
-			formData.append(
-				`images[${placeholderName}]`,
-				new File([fileData], file.name, { type: file.mime })
-			);
+			// 上傳文件到 GCS，獲取公開的 URL
+			const imageUrl = await uploadFileToGCS(imageFile);
 
-			// 9. 調用後端 API 創建產品
-			const response = await axios.post(`${env.BACKEND_API_URL}/api/products`, formData, {
-				headers: {
-					...headers,
-					"Content-Type": "multipart/form-data",
-				},
+			// 6. 構建 Gelato API 請求資料
+			const productData = {
+				templateId: template.templateId,
+				title: template.title || "Custom Product",
+				description: template.description || "A custom product created using your image.",
+				isVisibleInTheOnlineStore: true,
+				salesChannels: ["web"],
+				tags: template.tags || [],
+				variants: template.variants.map((variant: VariantObject) => ({
+					templateVariantId: variant.id,
+					imagePlaceholders: variant.imagePlaceholders.map(
+						(placeholder: ImagePlaceholderObject) => ({
+							name: placeholder.name,
+							fileUrl: imageUrl,
+						})
+					),
+					// 如果有文字佔位符，可以在此處添加
+				})),
+				productType: template.productType || "Custom Product",
+				vendor: template.vendor || "Gelato",
+			};
+
+			// 7. 調用 Gelato API 創建產品
+			const gelatoHeaders = {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+				"X-API-KEY": apiKey,
+			};
+
+			const createUrl = `https://apis.gelato.com/v3/stores/${storeId}/products:create-from-template`;
+			const gelatoResponse = await axios.post(createUrl, productData, {
+				headers: gelatoHeaders,
 			});
 
-			if (![200, 202].includes(response.status)) {
-				throw new Error(`創建產品失敗：${response.statusText}`);
+			if (gelatoResponse.status !== 200) {
+				throw new Error(`創建產品失敗：${gelatoResponse.statusText}`);
 			}
 
-			const result: CreateProductResponse = response.data;
+			const gelatoProductId = gelatoResponse.data.id;
 
-			// 10. 返回結果給用戶
+			// 8. 將產品資訊記錄到 MongoDB
+			const newProduct = {
+				_id: new ObjectId(),
+				userId: new ObjectId(userId),
+				title: productData.title,
+				description: productData.description,
+				images: [imageUrl],
+				provider: "Gelato",
+				productType: productData.productType,
+				templateId: template.templateId,
+				variants: productData.variants,
+				tags: productData.tags,
+				categories: template.categories || [],
+				status: "active",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				providerProductId: gelatoProductId,
+			};
+
+			await collections.products.insertOne(newProduct);
+
+			// 9. 返回結果給使用者
 			yield {
 				outputs: [
 					{
-						create_product: `產品已成功創建，狀態：${result.message}${
-							result.productId ? `，ID：${result.productId}` : ""
-						}`,
+						create_product: `產品已成功創建，產品 ID：${gelatoProductId}`,
 					},
 				],
 				display: true,
