@@ -150,7 +150,8 @@ const createProductTool: ConfigTool = {
 				// 如果需要，添加 textPlaceholders
 			}));
 
-			console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
+			//console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
+			console.log("構建的 gelatoVariants");
 
 			// 11. 在 Gelato 上創建產品
 			const providerResponse = await createProductOnGelato({
