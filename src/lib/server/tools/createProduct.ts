@@ -67,7 +67,7 @@ const createProductTool: ConfigTool = {
 			if (!template) {
 				throw new Error(`未找到模板，模板 ID：${templateId}`);
 			}
-			console.log(template);
+			console.log("Find template ID:", template.templateId);
 
 			// 4. 處理對話中的圖片文件
 			const message = messages[fileMessageIndex];
