@@ -185,10 +185,12 @@ const createProductTool: ConfigTool = {
 				updatedAt: new Date(),
 				providerProductId: providerResponse.id, // Gelato 的 storeProductId
 			};
-			console.log("store Database!");
+			console.log("create Database record!");
 
 			// 13. 保存產品到資料庫
 			await collections.products.insertOne(newProduct);
+
+			console.log("store Database!");
 
 			// 14. 返回結果給使用者
 			yield {
@@ -199,6 +201,7 @@ const createProductTool: ConfigTool = {
 				],
 				display: true,
 			};
+			console.log("return result!");
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "未知錯誤";
 			yield {
