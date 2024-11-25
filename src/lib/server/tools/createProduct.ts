@@ -119,6 +119,7 @@ const createProductTool: ConfigTool = {
 
 			// 8. 檢查是否所有佔位符都有對應的圖片
 			for (const variant of template.variants) {
+				console.log(`variant.id: ${variant.id}, imagePlaceholders:`, variant.imagePlaceholders);
 				for (const placeholder of variant.imagePlaceholders) {
 					if (!imageFiles[placeholder.name]) {
 						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
@@ -163,6 +164,7 @@ const createProductTool: ConfigTool = {
 				productType,
 				vendor: template.vendor || "Gelato",
 			});
+			console.log("call Gelato API!");
 
 			// 12. 創建本地產品記錄
 			const newProduct: Product = {
@@ -176,12 +178,13 @@ const createProductTool: ConfigTool = {
 				templateId,
 				variants: gelatoVariants,
 				tags,
-				categories: categoryIds.map((id: string) => new ObjectId(id)),
+				categories: categoryIds ? categoryIds.map((id: string) => new ObjectId(id)) : [],
 				status: "pending", // 初始狀態為 pending
 				createdAt: new Date(),
 				updatedAt: new Date(),
 				providerProductId: providerResponse.id, // Gelato 的 storeProductId
 			};
+			console.log("store Database!");
 
 			// 13. 保存產品到資料庫
 			await collections.products.insertOne(newProduct);
