@@ -1,3 +1,5 @@
+// src/lib/server/tools/index.ts
+
 import { MessageUpdateType } from "$lib/types/MessageUpdate";
 import {
 	ToolColor,

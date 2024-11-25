@@ -1,3 +1,5 @@
+// src/lib/server/tools/outputs.ts
+
 import type { ToolIOType, ToolOutputComponents } from "$lib/types/Tool";
 
 export const ToolOutputPaths: Record<

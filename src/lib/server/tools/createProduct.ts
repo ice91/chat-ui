@@ -194,11 +194,7 @@ const createProductTool: ConfigTool = {
 
 			// 14. 返回結果給使用者
 			yield {
-				outputs: [
-					{
-						create_product: `產品創建請求已提交，正在處理中`,
-					},
-				],
+				outputs: [`產品創建請求已提交，正在處理中`],
 				display: true,
 			};
 			console.log("return result!");
