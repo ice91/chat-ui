@@ -1,4 +1,4 @@
-// src/lib/server/tools/createProduct.ts
+// src/lib/server/tools/createProductTool.ts
 
 import type { ConfigTool, ToolContext } from "$lib/types/Tool";
 import { ObjectId } from "mongodb";
@@ -6,11 +6,13 @@ import { downloadFile } from "../files/downloadFile";
 import { uploadFileToGCS } from "../files/uploadFileToGCS";
 import { collections } from "$lib/server/database";
 import { env } from "$env/dynamic/private";
-import type { VariantObject, ImagePlaceholderObject } from "$lib/types/ProductTemplate";
+import type { VariantObject } from "$lib/types/ProductTemplate";
 import { createProductOnGelato } from "$lib/server/gelato";
 import type { Product } from "$lib/types/Product";
+import { productNameToTemplateId, normalizeProductName } from "./productMappings";
 
 interface CreateProductParams {
+	productName: string;
 	fileMessageIndex: number;
 	fileIndex: number;
 }
@@ -19,22 +21,28 @@ const createProductTool: ConfigTool = {
 	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
-		"使用對話中的圖片，根據指定的模板 ID，在 Gelato 平臺上創建產品，並將產品資訊記錄到本地資料庫。只需提供圖片所在的消息索引和文件索引，其餘資訊將自動從模板獲取。",
+		"使用對話中的圖片，根據指定的產品名稱，在 Gelato 平台上創建產品，並將產品資訊記錄到本地資料庫。請提供產品名稱、圖片所在的消息索引和文件索引。",
 	color: "green",
 	icon: "tools",
-	displayName: "創建產品",
-	name: "create_product",
+	displayName: "Create Product",
+	name: "createProductTool",
 	endpoint: null,
 	inputs: [
 		{
+			name: "productName",
+			type: "str",
+			description: "產品名稱，例如 'T-shirt' 或 'Aluminum Print'",
+			paramType: "required",
+		},
+		{
 			name: "fileMessageIndex",
-			type: "number",
+			type: "int",
 			description: "包含圖片的消息索引",
 			paramType: "required",
 		},
 		{
 			name: "fileIndex",
-			type: "number",
+			type: "int",
 			description: "圖片文件在消息中的索引",
 			paramType: "required",
 		},
@@ -43,33 +51,44 @@ const createProductTool: ConfigTool = {
 	outputComponentIdx: null,
 	showOutput: true,
 	async *call(
-		{ fileMessageIndex, fileIndex }: CreateProductParams,
+		{ productName, fileMessageIndex, fileIndex }: CreateProductParams,
 		{ conv, messages }: ToolContext
 	) {
 		try {
-			// 0. 固定的模板 ID，對應 Aluminum Print
-			const templateId = "fadf6eb1-a041-4837-bc05-585745ade6ea";
-			// 1. 從環境變數中獲取 Gelato API 配置
+			// 1. 根據 productName 獲取對應的 templateId
+			const normalizedProductName = normalizeProductName(productName);
+			if (!normalizedProductName) {
+				throw new Error(
+					`無法識別產品名稱 '${productName}'。請提供有效的產品名稱，例如 'T-shirt' 或 'Aluminum Print'。`
+				);
+			}
+
+			const templateId = productNameToTemplateId[normalizedProductName];
+			if (!templateId) {
+				throw new Error(`未找到產品 '${normalizedProductName}' 對應的模板 ID。`);
+			}
+
+			// 2. 檢查 Gelato API 配置
 			const apiKey = env.GELATO_API_KEY;
 			const storeId = env.GELATO_STORE_ID;
 			if (!apiKey || !storeId) {
 				throw new Error("未配置 Gelato API 密鑰或商店 ID");
 			}
 
-			// 2. 獲取使用者 ID
+			// 3. 獲取使用者 ID
 			const userId = conv.userId;
 			if (!userId) {
 				throw new Error("未找到使用者 ID");
 			}
 
-			// 3. 從 MongoDB 中取得模板資訊
+			// 4. 從資料庫中獲取模板資訊
 			const template = await collections.productTemplates.findOne({ templateId });
 			if (!template) {
 				throw new Error(`未找到模板，模板 ID：${templateId}`);
 			}
-			console.log("Find template ID:", template.templateId);
+			console.log("找到模板 ID:", template.templateId);
 
-			// 4. 處理對話中的圖片文件
+			// 5. 處理對話中的圖片文件
 			const message = messages[fileMessageIndex];
 			if (!message) {
 				throw new Error(`未找到消息，索引：${fileMessageIndex}`);
@@ -85,7 +104,7 @@ const createProductTool: ConfigTool = {
 				throw new Error(`文件不是圖片類型：${file.name}`);
 			}
 
-			// 5. 下載並上傳圖片，獲取 URL
+			// 6. 下載並上傳圖片，獲取 URL
 			const fileData = await downloadFile(file.value, conv._id).then((data) =>
 				Buffer.from(data.value, "base64")
 			);
@@ -97,7 +116,7 @@ const createProductTool: ConfigTool = {
 			// 上傳文件到 GCS，獲取公開的 URL
 			const GCSimageUrl = await uploadFileToGCS(imageFile);
 
-			// 6. 定義缺少的變數
+			// 7. 定義產品資訊
 			const title = template.title || "Custom Product";
 			const description = template.description || "A custom product created using your image.";
 			const tags = template.tags || [];
@@ -105,55 +124,28 @@ const createProductTool: ConfigTool = {
 			const sellerId = userId; // 假設 sellerId 即為 userId
 			const categoryIds = template.categories || [];
 
-			// 7. 構建 imageFiles
-			const imageFiles: Record<string, File> = {};
-
-			// 獲取所有佔位符名稱
+			// 8. 構建 Gelato API 的變體資料
 			const placeholderNames = template.variants.flatMap((variant: VariantObject) =>
-				variant.imagePlaceholders.map((placeholder: ImagePlaceholderObject) => placeholder.name)
+				variant.imagePlaceholders.map((placeholder) => placeholder.name)
 			);
 
-			for (const placeholderName of placeholderNames) {
-				imageFiles[placeholderName] = imageFile; // 使用上傳的圖片文件
-			}
-
-			// 8. 檢查是否所有佔位符都有對應的圖片
-			for (const variant of template.variants) {
-				//console.log(`variant.id: ${variant.id}, imagePlaceholders:`, variant.imagePlaceholders);
-				for (const placeholder of variant.imagePlaceholders) {
-					if (!imageFiles[placeholder.name]) {
-						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
-					}
-				}
-			}
-
-			// 9. 構建 imageUrls
+			// 構建 imageUrls
 			const imageUrls: Record<string, string> = {};
-			for (const placeholderName in imageFiles) {
-				imageUrls[placeholderName] = GCSimageUrl;
-				console.log(`上傳圖片佔位符 "${placeholderName}"，獲取的 URL：${GCSimageUrl}`);
-			}
+			placeholderNames.forEach((name) => {
+				imageUrls[name] = GCSimageUrl;
+			});
 
-			// 10. 構建 Gelato API 的變體資料
+			// 構建 variants
 			const gelatoVariants: VariantObject[] = template.variants.map((variant) => ({
 				templateVariantId: variant.id,
-				imagePlaceholders: variant.imagePlaceholders.map((placeholder) => {
-					const fileUrl = imageUrls[placeholder.name];
-					if (!fileUrl) {
-						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
-					}
-					return {
-						name: placeholder.name,
-						fileUrl,
-					};
-				}),
+				imagePlaceholders: variant.imagePlaceholders.map((placeholder) => ({
+					name: placeholder.name,
+					fileUrl: imageUrls[placeholder.name],
+				})),
 				// 如果需要，添加 textPlaceholders
 			}));
 
-			//console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
-			console.log("構建的 gelatoVariants");
-
-			// 11. 在 Gelato 上創建產品
+			// 9. 在 Gelato 上創建產品
 			const providerResponse = await createProductOnGelato({
 				templateId,
 				title,
@@ -165,9 +157,9 @@ const createProductTool: ConfigTool = {
 				productType,
 				vendor: template.vendor || "Gelato",
 			});
-			console.log("call Gelato API!");
+			console.log("調用 Gelato API!");
 
-			// 12. 創建本地產品記錄
+			// 10. 創建本地產品記錄
 			const newProduct: Product = {
 				_id: new ObjectId(),
 				userId: new ObjectId(sellerId),
@@ -185,24 +177,24 @@ const createProductTool: ConfigTool = {
 				updatedAt: new Date(),
 				providerProductId: providerResponse.id, // Gelato 的 storeProductId
 			};
-			console.log("create Database record!");
+			console.log("創建資料庫記錄!");
 
-			// 13. 保存產品到資料庫
+			// 11. 保存產品到資料庫
 			await collections.products.insertOne(newProduct);
 
-			console.log("store Database!");
+			console.log("儲存到資料庫!");
 
-			// 14. 返回結果給使用者
+			// 12. 返回結果給使用者
 			return {
 				outputs: [
-					`產品創建請求已提交，正在處理中... 請參考 https://canvastalk-store-753c8b8a963436e912d0.o2.myshopify.dev/seller/products`,
+					`您的 ${normalizedProductName} 產品創建請求已提交，正在處理中。請前往您的商店頁面查看: https://canvastalk-store-753c8b8a963436e912d0.o2.myshopify.dev/seller/products`,
 				],
 				display: true,
 			};
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "未知錯誤";
 			return {
-				outputs: [{ create_product: `創建產品時出錯：${errorMessage}` }],
+				outputs: [`創建產品時出錯：${errorMessage}`],
 				display: true,
 			};
 		}
