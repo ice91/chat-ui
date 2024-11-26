@@ -193,14 +193,13 @@ const createProductTool: ConfigTool = {
 			console.log("store Database!");
 
 			// 14. 返回結果給使用者
-			yield {
+			return {
 				outputs: [`產品創建請求已提交，正在處理中`],
 				display: true,
 			};
-			console.log("return result!");
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "未知錯誤";
-			yield {
+			return {
 				outputs: [{ create_product: `創建產品時出錯：${errorMessage}` }],
 				display: true,
 			};

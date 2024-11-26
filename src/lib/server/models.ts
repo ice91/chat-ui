@@ -1,3 +1,5 @@
+// src/lib/server/models.ts
+
 import { env } from "$env/dynamic/private";
 import type { ChatTemplateInput } from "$lib/types/Template";
 import { compileTemplate } from "$lib/utils/template";

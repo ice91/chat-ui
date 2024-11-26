@@ -1,3 +1,5 @@
+// src/lib/server/textGeneration/tools.ts
+
 import { ToolResultStatus, type ToolCall, type Tool, type ToolResult } from "$lib/types/Tool";
 import { v4 as uuidV4 } from "uuid";
 import { getCallMethod, toolFromConfigs, type BackendToolContext } from "../tools";

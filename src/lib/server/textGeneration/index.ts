@@ -1,3 +1,5 @@
+// src/lib/server/textGeneration/index.ts
+
 import { runWebSearch } from "$lib/server/websearch/runWebSearch";
 import { preprocessMessages } from "../endpoints/preprocessMessages";
 
