@@ -104,7 +104,7 @@ const createProductTool: ConfigTool = {
 				throw new Error(`文件不是圖片類型：${file.name}`);
 			}
 
-			// 6. 下載並上傳圖片，獲取 URL
+			// 5. 下載並上傳圖片，獲取 URL
 			const fileData = await downloadFile(file.value, conv._id).then((data) =>
 				Buffer.from(data.value, "base64")
 			);
@@ -116,7 +116,7 @@ const createProductTool: ConfigTool = {
 			// 上傳文件到 GCS，獲取公開的 URL
 			const GCSimageUrl = await uploadFileToGCS(imageFile);
 
-			// 7. 定義產品資訊
+			// 6. 定義缺少的變數
 			const title = template.title || "Custom Product";
 			const description = template.description || "A custom product created using your image.";
 			const tags = template.tags || [];
@@ -124,28 +124,55 @@ const createProductTool: ConfigTool = {
 			const sellerId = userId; // 假設 sellerId 即為 userId
 			const categoryIds = template.categories || [];
 
-			// 8. 構建 Gelato API 的變體資料
+			// 7. 構建 imageFiles
+			const imageFiles: Record<string, File> = {};
+
+			// 獲取所有佔位符名稱
 			const placeholderNames = template.variants.flatMap((variant: VariantObject) =>
-				variant.imagePlaceholders.map((placeholder) => placeholder.name)
+				variant.imagePlaceholders.map((placeholder: ImagePlaceholderObject) => placeholder.name)
 			);
 
-			// 構建 imageUrls
-			const imageUrls: Record<string, string> = {};
-			placeholderNames.forEach((name) => {
-				imageUrls[name] = GCSimageUrl;
-			});
+			for (const placeholderName of placeholderNames) {
+				imageFiles[placeholderName] = imageFile; // 使用上傳的圖片文件
+			}
 
-			// 構建 variants
+			// 8. 檢查是否所有佔位符都有對應的圖片
+			for (const variant of template.variants) {
+				//console.log(`variant.id: ${variant.id}, imagePlaceholders:`, variant.imagePlaceholders);
+				for (const placeholder of variant.imagePlaceholders) {
+					if (!imageFiles[placeholder.name]) {
+						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+					}
+				}
+			}
+
+			// 9. 構建 imageUrls
+			const imageUrls: Record<string, string> = {};
+			for (const placeholderName in imageFiles) {
+				imageUrls[placeholderName] = GCSimageUrl;
+				console.log(`上傳圖片佔位符 "${placeholderName}"，獲取的 URL：${GCSimageUrl}`);
+			}
+
+			// 10. 構建 Gelato API 的變體資料
 			const gelatoVariants: VariantObject[] = template.variants.map((variant) => ({
 				templateVariantId: variant.id,
-				imagePlaceholders: variant.imagePlaceholders.map((placeholder) => ({
-					name: placeholder.name,
-					fileUrl: imageUrls[placeholder.name],
-				})),
+				imagePlaceholders: variant.imagePlaceholders.map((placeholder) => {
+					const fileUrl = imageUrls[placeholder.name];
+					if (!fileUrl) {
+						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
+					}
+					return {
+						name: placeholder.name,
+						fileUrl,
+					};
+				}),
 				// 如果需要，添加 textPlaceholders
 			}));
 
-			// 9. 在 Gelato 上創建產品
+			//console.log("構建的 gelatoVariants：", JSON.stringify(gelatoVariants, null, 2));
+			console.log("構建的 gelatoVariants");
+
+			// 11. 在 Gelato 上創建產品
 			const providerResponse = await createProductOnGelato({
 				templateId,
 				title,
@@ -157,9 +184,9 @@ const createProductTool: ConfigTool = {
 				productType,
 				vendor: template.vendor || "Gelato",
 			});
-			console.log("調用 Gelato API!");
+			console.log("call Gelato API!");
 
-			// 10. 創建本地產品記錄
+			// 12. 創建本地產品記錄
 			const newProduct: Product = {
 				_id: new ObjectId(),
 				userId: new ObjectId(sellerId),
@@ -177,17 +204,17 @@ const createProductTool: ConfigTool = {
 				updatedAt: new Date(),
 				providerProductId: providerResponse.id, // Gelato 的 storeProductId
 			};
-			console.log("創建資料庫記錄!");
+			console.log("create Database record!");
 
-			// 11. 保存產品到資料庫
+			// 13. 保存產品到資料庫
 			await collections.products.insertOne(newProduct);
 
-			console.log("儲存到資料庫!");
+			console.log("store Database!");
 
-			// 12. 返回結果給使用者
+			// 14. 返回結果給使用者
 			return {
 				outputs: [
-					`您的 ${normalizedProductName} 產品創建請求已提交，正在處理中。請前往您的商店頁面查看: https://canvastalk-store-753c8b8a963436e912d0.o2.myshopify.dev/seller/products`,
+					`產品創建請求已提交，正在處理中... 請參考 https://canvastalk-store-753c8b8a963436e912d0.o2.myshopify.dev/seller/products`,
 				],
 				display: true,
 			};
