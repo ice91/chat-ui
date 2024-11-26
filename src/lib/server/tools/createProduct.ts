@@ -119,7 +119,7 @@ const createProductTool: ConfigTool = {
 
 			// 8. 檢查是否所有佔位符都有對應的圖片
 			for (const variant of template.variants) {
-				console.log(`variant.id: ${variant.id}, imagePlaceholders:`, variant.imagePlaceholders);
+				//console.log(`variant.id: ${variant.id}, imagePlaceholders:`, variant.imagePlaceholders);
 				for (const placeholder of variant.imagePlaceholders) {
 					if (!imageFiles[placeholder.name]) {
 						throw new Error(`缺少佔位符 "${placeholder.name}" 的圖片文件。`);
