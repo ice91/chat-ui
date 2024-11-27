@@ -18,7 +18,7 @@ interface CreateProductParams {
 }
 
 const createProductTool: ConfigTool = {
-	_id: new ObjectId("00000000000000000000000D"), // 確保使用唯一的 ObjectId
+	_id: new ObjectId("00000000000000000000000E"), // 確保使用唯一的 ObjectId
 	type: "config",
 	description:
 		"使用對話中的圖片，根據指定的產品名稱，在 Gelato 平台上創建產品，並將產品資訊記錄到本地資料庫。請提供產品名稱、圖片所在的消息索引和文件索引。",
