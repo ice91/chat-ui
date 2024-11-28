@@ -214,7 +214,7 @@ const createProductTool: ConfigTool = {
 			// 14. 返回結果給使用者
 			return {
 				outputs: [
-					`產品創建請求已提交，正在處理中... 請參考 https://canvastalk-store-753c8b8a963436e912d0.o2.myshopify.dev/seller/products`,
+					`產品創建請求已提交，正在處理中... 請參考 https://canvastalk-art-store-8612d778549987745ed5.o2.myshopify.dev/seller/products`,
 				],
 				display: true,
 			};

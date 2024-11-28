@@ -50,7 +50,7 @@ async function getHydrogenPublicationIds(): Promise<string[]> {
 		}
 
 		const publications = response.data.data.publications.edges;
-		const targetPublicationNames = ["CanvasTalk Art Store", "畫語空間"]; // 根據您的需求調整
+		const targetPublicationNames = ["CanvasTalk Art Store"]; // 根據您的需求調整
 
 		const hydrogenPublications = publications.filter((edge) =>
 			targetPublicationNames.includes(edge.node.name)
