@@ -4,7 +4,7 @@
 	import { isAborted } from "$lib/stores/isAborted";
 	import { onMount } from "svelte";
 	import { page } from "$app/stores";
-	import { goto, invalidate } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { base } from "$app/paths";
 	import { shareConversation } from "$lib/shareConversation";
 	import { ERROR_MESSAGES, error } from "$lib/stores/errors";
@@ -12,9 +12,9 @@
 	import { webSearchParameters } from "$lib/stores/webSearchParameters";
 	import type { Message } from "$lib/types/Message";
 	import {
+		MessageReasoningUpdateType,
 		MessageUpdateStatus,
 		MessageUpdateType,
-		type MessageUpdate,
 	} from "$lib/types/MessageUpdate";
 	import titleUpdate from "$lib/stores/titleUpdate";
 	import file2base64 from "$lib/utils/file2base64";
@@ -24,7 +24,6 @@
 	import { createConvTreeStore } from "$lib/stores/convTree";
 	import type { v4 } from "uuid";
 	import { useSettingsStore } from "$lib/stores/settings.js";
-	import { UrlDependency } from "$lib/types/UrlDependency.js";
 
 	export let data;
 
@@ -216,8 +215,6 @@
 
 			files = [];
 
-			const messageUpdates: MessageUpdate[] = [];
-
 			for await (const update of messageUpdatesIterator) {
 				if ($isAborted) {
 					messageUpdatesAbortController.abort();
@@ -230,7 +227,7 @@
 					update.token = update.token.replaceAll("\0", "");
 				}
 
-				messageUpdates.push(update);
+				messageToWriteTo.updates = [...(messageToWriteTo.updates ?? []), update];
 
 				if (update.type === MessageUpdateType.Stream && !$settings.disableStream) {
 					messageToWriteTo.content += update.token;
@@ -240,7 +237,6 @@
 					update.type === MessageUpdateType.WebSearch ||
 					update.type === MessageUpdateType.Tool
 				) {
-					messageToWriteTo.updates = [...(messageToWriteTo.updates ?? []), update];
 					messages = [...messages];
 				} else if (
 					update.type === MessageUpdateType.Status &&
@@ -248,9 +244,7 @@
 				) {
 					$error = update.message ?? "An error has occurred";
 				} else if (update.type === MessageUpdateType.Title) {
-					const convInData = await data.conversations.then((convs) =>
-						convs.find(({ id }) => id === $page.params.id)
-					);
+					const convInData = data.conversations.find(({ id }) => id === $page.params.id);
 					if (convInData) {
 						convInData.title = update.title;
 
@@ -265,10 +259,18 @@
 						{ type: "hash", value: update.sha, mime: update.mime, name: update.name },
 					];
 					messages = [...messages];
+				} else if (update.type === MessageUpdateType.Reasoning) {
+					if (!messageToWriteTo.reasoning) {
+						messageToWriteTo.reasoning = "";
+					}
+					if (update.subtype === MessageReasoningUpdateType.Stream) {
+						messageToWriteTo.reasoning += update.token;
+					} else {
+						messageToWriteTo.updates = [...(messageToWriteTo.updates ?? []), update];
+					}
+					messages = [...messages];
 				}
 			}
-
-			messageToWriteTo.updates = messageUpdates;
 		} catch (err) {
 			if (err instanceof Error && err.message.includes("overloaded")) {
 				$error = "Too much traffic, please try again.";
@@ -283,7 +285,7 @@
 		} finally {
 			loading = false;
 			pending = false;
-			await invalidate(UrlDependency.Conversation);
+			await invalidateAll();
 		}
 	}
 
@@ -361,7 +363,7 @@
 
 	async function onContinue(event: CustomEvent<{ id: Message["id"] }>) {
 		if (!data.shared) {
-			writeMessage({ messageId: event.detail.id, isContinue: true });
+			await writeMessage({ messageId: event.detail.id, isContinue: true });
 		} else {
 			await convFromShared()
 				.then(async (convId) => {
@@ -379,9 +381,7 @@
 	}
 
 	$: $page.params.id, (($isAborted = true), (loading = false), ($convTreeStore.editing = null));
-	$: title = data.conversations.then(
-		(convs) => convs.find((conv) => conv.id === $page.params.id)?.title ?? data.title
-	);
+	$: title = data.conversations.find((conv) => conv.id === $page.params.id)?.title ?? data.title;
 
 	const convTreeStore = createConvTreeStore();
 	const settings = useSettingsStore();

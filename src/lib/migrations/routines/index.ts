@@ -13,7 +13,7 @@ import createReferralCodesCollection from "./09-create-referral-codes-collection
 import createProductEarningStorefrontOrder from "./10-create-product-earning-storefront-order";
 import createStateStore from "./11-create-stateStore-collection";
 import updateFeaturedToReview from "./08-update-featured-to-review";
-
+import deleteEmptyConversations from "./09-delete-empty-conversations";
 export interface Migration {
 	_id: ObjectId;
 	name: string;
@@ -37,4 +37,5 @@ export const migrations: Migration[] = [
 	createProductEarningStorefrontOrder, // 新增的遷移
 	createStateStore,
 	updateFeaturedToReview,
+	deleteEmptyConversations,
 ];

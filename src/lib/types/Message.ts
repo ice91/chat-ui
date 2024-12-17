@@ -12,6 +12,8 @@ export type Message = Partial<Timestamps> & {
 	updates?: MessageUpdate[];
 	webSearchId?: WebSearch["_id"]; // legacy version
 	webSearch?: WebSearch;
+
+	reasoning?: string;
 	score?: -1 | 0 | 1;
 	/**
 	 * Either contains the base64 encoded image data

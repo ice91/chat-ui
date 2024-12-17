@@ -58,10 +58,7 @@
 				return;
 			}
 
-			data.conversations.then((convs) => {
-				const newConvs = convs.filter((conv) => conv.id !== id);
-				data.conversations = Promise.resolve(newConvs);
-			});
+			data.conversations = data.conversations.filter((conv) => conv.id !== id);
 
 			if ($page.params.id === id) {
 				await goto(`${base}/`, { invalidateAll: true });
@@ -87,10 +84,9 @@
 				return;
 			}
 
-			data.conversations.then((convs) => {
-				const newConvs = convs.map((conv) => (conv.id === id ? { ...conv, title } : conv));
-				data.conversations = Promise.resolve(newConvs);
-			});
+			data.conversations = data.conversations.map((conv) =>
+				conv.id === id ? { ...conv, title } : conv
+			);
 		} catch (err) {
 			console.error(err);
 			$error = String(err);
@@ -104,17 +100,13 @@
 	$: if ($error) onError();
 
 	$: if ($titleUpdate) {
-		data.conversations.then((convs) => {
-			const convIdx = convs.findIndex(({ id }) => id === $titleUpdate?.convId);
+		const convIdx = data.conversations.findIndex(({ id }) => id === $titleUpdate?.convId);
 
-			if (convIdx != -1) {
-				convs[convIdx].title = $titleUpdate?.title ?? convs[convIdx].title;
-			}
-			// update data.conversations
-			data.conversations = Promise.resolve([...convs]);
+		if (convIdx != -1) {
+			data.conversations[convIdx].title = $titleUpdate?.title ?? data.conversations[convIdx].title;
+		}
 
-			$titleUpdate = null;
-		});
+		$titleUpdate = null;
 	}
 
 	const settings = createSettingsStore(data.settings);
@@ -153,7 +145,13 @@
 
 	$: mobileNavTitle = ["/models", "/assistants", "/privacy"].includes($page.route.id ?? "")
 		? ""
-		: data.conversations.then((convs) => convs.find((conv) => conv.id === $page.params.id)?.title);
+		: data.conversations.find((conv) => conv.id === $page.params.id)?.title;
+
+	$: showDisclaimer =
+		!$settings.ethicsModalAccepted &&
+		$page.url.pathname !== `${base}/privacy` &&
+		envPublic.PUBLIC_APP_DISCLAIMER === "1" &&
+		!($page.data.shared === true);
 </script>
 
 <svelte:head>
@@ -211,7 +209,7 @@
 	{/if}
 </svelte:head>
 
-{#if !$settings.ethicsModalAccepted && $page.url.pathname !== `${base}/privacy` && envPublic.PUBLIC_APP_DISCLAIMER === "1"}
+{#if showDisclaimer}
 	<DisclaimerModal on:close={() => ($settings.ethicsModalAccepted = true)} />
 {/if}
 
@@ -219,13 +217,13 @@
 	isCollapsed={isNavCollapsed}
 	on:click={() => (isNavCollapsed = !isNavCollapsed)}
 	classNames="absolute inset-y-0 z-10 my-auto {!isNavCollapsed
-		? 'left-[280px]'
+		? 'left-[290px]'
 		: 'left-0'} *:transition-transform"
 />
 
 <div
 	class="grid h-full w-screen grid-cols-1 grid-rows-[auto,1fr] overflow-hidden text-smd {!isNavCollapsed
-		? 'md:grid-cols-[280px,1fr]'
+		? 'md:grid-cols-[290px,1fr]'
 		: 'md:grid-cols-[0px,1fr]'} transition-[300ms] [transition-property:grid-template-columns] dark:text-gray-300 md:grid-rows-[1fr]"
 >
 	<MobileNav isOpen={isNavOpen} on:toggle={(ev) => (isNavOpen = ev.detail)} title={mobileNavTitle}>
@@ -239,7 +237,7 @@
 		/>
 	</MobileNav>
 	<nav
-		class=" grid max-h-screen grid-cols-1 grid-rows-[auto,1fr,auto] overflow-hidden *:w-[280px] max-md:hidden"
+		class=" grid max-h-screen grid-cols-1 grid-rows-[auto,1fr,auto] overflow-hidden *:w-[290px] max-md:hidden"
 	>
 		<NavMenu
 			conversations={data.conversations}

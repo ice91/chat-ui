@@ -10,7 +10,8 @@ export type MessageUpdate =
 	| MessageWebSearchUpdate
 	| MessageStreamUpdate
 	| MessageFileUpdate
-	| MessageFinalAnswerUpdate;
+	| MessageFinalAnswerUpdate
+	| MessageReasoningUpdate;
 
 export enum MessageUpdateType {
 	Status = "status",
@@ -20,6 +21,7 @@ export enum MessageUpdateType {
 	Stream = "stream",
 	File = "file",
 	FinalAnswer = "finalAnswer",
+	Reasoning = "reasoning",
 }
 
 // Status
@@ -116,6 +118,25 @@ export interface MessageStreamUpdate {
 	type: MessageUpdateType.Stream;
 	token: string;
 }
+
+export enum MessageReasoningUpdateType {
+	Stream = "stream",
+	Status = "status",
+}
+
+export type MessageReasoningUpdate = MessageReasoningStreamUpdate | MessageReasoningStatusUpdate;
+
+export interface MessageReasoningStreamUpdate {
+	type: MessageUpdateType.Reasoning;
+	subtype: MessageReasoningUpdateType.Stream;
+	token: string;
+}
+export interface MessageReasoningStatusUpdate {
+	type: MessageUpdateType.Reasoning;
+	subtype: MessageReasoningUpdateType.Status;
+	status: string;
+}
+
 export interface MessageFileUpdate {
 	type: MessageUpdateType.File;
 	name: string;

@@ -278,8 +278,19 @@ export class Database {
 
 		// 為 productTemplates 集合創建索引
 		productTemplates.createIndex({ templateId: 1 }, { unique: true }).catch((e) => logger.error(e));
-		productTemplates
-			.createIndex({ title: "text", description: "text" })
+		productTemplates.createIndex({ title: "text", description: "text" });
+		conversations
+			.createIndex({
+				"messages.from": 1,
+				createdAt: 1,
+			})
+			.catch((e) => logger.error(e));
+
+		conversations
+			.createIndex({
+				userId: 1,
+				sessionId: 1,
+			})
 			.catch((e) => logger.error(e));
 	}
 }
